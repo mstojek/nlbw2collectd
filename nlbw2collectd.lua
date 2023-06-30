@@ -15,6 +15,32 @@ local function isempty(s)
 end
 
 
+local function lookup(ip)
+    local client
+
+    -- First check the lease file for host name
+    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
+    lease_file = lease_file:gsub('[%c]', '')
+    command = "grep \"\\b" .. ip .. "\\b\" " .. lease_file .. " | awk '{print $4}'"
+    client=luci.sys.exec(command)
+    client = client:gsub('[%c]', '')
+
+    if isempty(client) then
+        -- Try with nslookup then
+        command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
+        client = luci.sys.exec(command)
+        client = client:gsub('[%c]', '')
+    end
+
+
+    if isempty(client) then
+        client = ip
+    end
+
+    return client
+end
+
+
 function read()
     --collectd.log_info("read function called")
     local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
@@ -24,21 +50,17 @@ function read()
 
 
     for index, value in ipairs(pjson.data) do
-
+    
+    local client = ""
     local ip = value[1]
     command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
-    --collectd.log_info("Command: " .. command)
     local client = luci.sys.exec(command)
     local tx_bytes = value[3]
     local tx_packets = value[4]
     local rx_bytes = value[5]
     local rx_packets = value[6]
 
-    local client = client:gsub('[%c]', '')
-
-    if isempty(client) then
-        client = ip
-    end
+    client = lookup(ip)
 
     --collectd.log_info("ip: " .. ip .. " , client: " .. client)
 
