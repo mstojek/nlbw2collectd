@@ -1,10 +1,10 @@
 require "luci.jsonc"
 require "luci.sys"
 
-local HOSTNAME = 'testing' -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
-local PLUGIN="iptables-mangle"
-local PLUGIN_INSTANCE_RX="nlbwmon_rx" -- change to 'iptmon_rx' to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="nlbwmon_tx" -- change to 'iptmon_tx' to have full compliance with iptmon
+local HOSTNAME = '' -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
+local PLUGIN="iptables"
+local PLUGIN_INSTANCE_RX="mangle-nlbwmon_rx" -- change to '"mangle-iptmon_rx' to have full compliance with iptmon
+local PLUGIN_INSTANCE_TX="mangle-nlbwmon_tx" -- change to '"mangle-iptmon_tx' to have full compliance with iptmon
 local TYPE_BYTES="ipt_bytes"
 local TYPE_PACKETS="ipt_packets"
 local TYPE_INSTANCE_PREFIX_RX="rx_"
