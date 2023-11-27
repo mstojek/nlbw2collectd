@@ -59,6 +59,9 @@ function read()
     local tx_packets = value[4]
     local rx_bytes = value[5]
     local rx_packets = value[6]
+    local tx_bytes_modulo = tx_bytes % 2147483647 --workaround since we can not report to collectd more than 32bit integer
+    local rx_bytes_modulo = rx_bytes % 2147483647 --workaround since we can not report to collectd more than 32bit integer
+
 
     client = lookup(ip)
 
@@ -70,7 +73,7 @@ function read()
             plugin_instance = PLUGIN_INSTANCE_TX,
             type = TYPE_BYTES,
             type_instance =  TYPE_INSTANCE_PREFIX_TX .. client, 
-            values = {tx_bytes},
+            values = {tx_bytes_modulo},
         }
         collectd.dispatch_values(tx_b)
 
@@ -80,7 +83,7 @@ function read()
             plugin_instance = PLUGIN_INSTANCE_RX,
             type = TYPE_BYTES,
             type_instance =  TYPE_INSTANCE_PREFIX_RX .. client,
-            values = {rx_bytes},
+            values = {rx_bytes_modulo},
         }
         collectd.dispatch_values(rx_b)
 
@@ -113,4 +116,3 @@ function read()
 end
 
 collectd.register_read(read)     -- pass function as variable
-
