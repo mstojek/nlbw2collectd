@@ -42,7 +42,7 @@ Currently only IPv4 is supported, IPv6 support can be added later.
    ```
    /etc/init.d/collectd  restart
    ```
-6. Login to luci and go to Statistics->Graphs->Firewall. After about minute you should see your statistics.
+6. Login to Luci and go to Statistics->Graphs->Firewall. After about minute you should see your statistics.
 
 # Iptmon replacement
 Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this topu need to change two lines in the file nlbw2collectd.lua
