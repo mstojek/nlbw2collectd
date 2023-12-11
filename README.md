@@ -5,7 +5,7 @@ This collectd lua plugin allows you to put [Nlbwmon](https://github.com/jow-/nlb
 I have been using [Iptmon](https://github.com/oofnikj/iptmon) tool to get very nice statistics of per host traffic on my Openwrt router. Unfortunatelly starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to replacement of iptables with nftables. When looking for alternatives I was not able to find anything what was close to Iptmon and working on latest Openwrt releases. I found [Nlbwmon](https://github.com/jow-/nlbwmon) to be very nice tool but what I was missing was more detailed per hour statistics with nice charts.
 
 # Dependencies
-This plugin assumes that you have Luci and luci-app-statistics installed. This plugin uses luci.sys and luci.jsonc lua libraries that are bundled with Luci. 
+This plugin assumes that you have Luci and luci-app-statistics installed. This plugin uses luci.jsonc lua library that should be bundled with Luci, if that is not the case you need to install this (details below). 
 Another required library is collectd-mod-lua
 
 # Limitation
@@ -17,7 +17,19 @@ Currently only IPv4 is supported, IPv6 support can be added later.
    opkg update
    opkg install collectd-mod-lua
    ```
-2. Copy [lua.conf]([lua.conf) to `collectd config` directory
+
+2. Make sure that luci-lib-jsonc is installed:
+   ```
+   #  opkg list-installed | grep luci-lib-jsonc
+   [...]
+   luci-lib-jsonc - git-22.097.61937-bc85ba5
+   ```
+   If it is not installed install this with:
+   ```
+   opkg install luci-lib-jsonc
+   ```
+   
+3. Copy [lua.conf]([lua.conf) to `collectd config` directory
    ```
    cp lua.conf /etc/collectd/conf.d
    ```
@@ -26,11 +38,11 @@ Currently only IPv4 is supported, IPv6 support can be added later.
    ```
    cp nlbw2collectd.lua /usr/share/collectd-mod-lua/
    ```
-6. Restart collectd
+5. Restart collectd
    ```
    /etc/init.d/collectd  restart
    ```
-8. Login to luci and go to Statistics->Graphs->Firewall. After about minute you should see your statistics.
+6. Login to luci and go to Statistics->Graphs->Firewall. After about minute you should see your statistics.
 
 # Iptmon replacement
 Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this topu need to change two lines in the file nlbw2collectd.lua
