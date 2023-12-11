@@ -1,6 +1,7 @@
 require "luci.jsonc"
 --require "luci.sys"
-require "luci.util"
+--require "luci.util"
+local io = require "io"
 
 local HOSTNAME = '' -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
 local PLUGIN="iptables"
@@ -15,24 +16,31 @@ local function isempty(s)
   return s == nil or s == ''
 end
 
+local function exec(command)
+	local pp   = io.popen(command)
+	local data = pp:read("*a")
+	pp:close()
+
+	return data
+end
 
 local function lookup(ip)
     local client
 
     -- First check the lease file for host name
 --    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
-    local lease_file=luci.util.exec("uci get dhcp.@dnsmasq[0].leasefile")
+    local lease_file=exec("uci get dhcp.@dnsmasq[0].leasefile")
     lease_file = lease_file:gsub('[%c]', '')
     command = "grep \"\\b" .. ip .. "\\b\" " .. lease_file .. " | awk '{print $4}'"
 --    client=luci.sys.exec(command)
-    client=luci.util.exec(command)
+    client=exec(command)
     client = client:gsub('[%c]', '')
 
     if isempty(client) then
         -- Try with nslookup then
         command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
 --        client = luci.sys.exec(command)
-        client=luci.util.exec(command)
+        client=exec(command)
         client = client:gsub('[%c]', '')
     end
 
@@ -48,7 +56,7 @@ end
 function read()
     --collectd.log_info("read function called")
 --    local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
-    local json = luci.util.exec("/usr/sbin/nlbw -c json -g ip")
+    local json = exec("/usr/sbin/nlbw -c json -g ip")
     --collectd.log_info("exec function called")
     local pjson = luci.jsonc.parse(json) 
     --collectd.log_info("Json: " .. json)
@@ -59,7 +67,7 @@ function read()
     local client = ""
     local ip = value[1]
     command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
-    local client = luci.sys.exec(command)
+    local client = exec(command)
     local tx_bytes = value[3]
     local tx_packets = value[4]
     local rx_bytes = value[5]
