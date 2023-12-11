@@ -12,13 +12,13 @@ Another required library is collectd-mod-lua
 Currently only IPv4 is supported, IPv6 support can be added later.
  
 # Installation instructions.
-1. Make sure that you have collectd-mod-lua installed on you openwrt router if not execute:
+1. Make sure that you have `collectd-mod-lua` installed on you openwrt router if not execute:
    ```
    opkg update
    opkg install collectd-mod-lua
    ```
 
-2. Make sure that luci-lib-jsonc is installed:
+2. Make sure that `luci-lib-jsonc` is installed:
    ```
    opkg list-installed | grep luci-lib-jsonc
    [...]
