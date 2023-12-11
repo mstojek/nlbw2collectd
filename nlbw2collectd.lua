@@ -1,5 +1,6 @@
 require "luci.jsonc"
-require "luci.sys"
+--require "luci.sys"
+require "luci.util"
 
 local HOSTNAME = '' -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
 local PLUGIN="iptables"
@@ -19,16 +20,19 @@ local function lookup(ip)
     local client
 
     -- First check the lease file for host name
-    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
+--    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
+    local lease_file=luci.util.exec("uci get dhcp.@dnsmasq[0].leasefile")
     lease_file = lease_file:gsub('[%c]', '')
     command = "grep \"\\b" .. ip .. "\\b\" " .. lease_file .. " | awk '{print $4}'"
-    client=luci.sys.exec(command)
+--    client=luci.sys.exec(command)
+    client=luci.util.exec(command)
     client = client:gsub('[%c]', '')
 
     if isempty(client) then
         -- Try with nslookup then
         command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
-        client = luci.sys.exec(command)
+--        client = luci.sys.exec(command)
+        client=luci.util.exec(command)
         client = client:gsub('[%c]', '')
     end
 
@@ -43,7 +47,8 @@ end
 
 function read()
     --collectd.log_info("read function called")
-    local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
+--    local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
+    local json = luci.util.exec("/usr/sbin/nlbw -c json -g ip")
     --collectd.log_info("exec function called")
     local pjson = luci.jsonc.parse(json) 
     --collectd.log_info("Json: " .. json)
