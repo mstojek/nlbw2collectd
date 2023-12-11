@@ -20,7 +20,7 @@ Currently only IPv4 is supported, IPv6 support can be added later.
 
 2. Make sure that luci-lib-jsonc is installed:
    ```
-   #  opkg list-installed | grep luci-lib-jsonc
+   opkg list-installed | grep luci-lib-jsonc
    [...]
    luci-lib-jsonc - git-22.097.61937-bc85ba5
    ```
