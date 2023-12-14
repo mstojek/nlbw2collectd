@@ -49,6 +49,10 @@ local function lookup(ip)
         client = ip
     end
 
+    if client == '*' then
+        client = ip
+    end
+
     return client
 end
 
