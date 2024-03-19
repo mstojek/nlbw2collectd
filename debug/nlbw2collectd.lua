@@ -62,8 +62,9 @@ function read()
 --    local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
     local json = exec("/usr/sbin/nlbw -c json -g ip")
     collectd.log_info("exec function called")
-    local pjson = luci.jsonc.parse(json) 
     collectd.log_info("Json: " .. json)
+    local pjson = luci.jsonc.parse(json) 
+    collectd.log_info("Parsed Json: " .. pjson)
 
 
     for index, value in ipairs(pjson.data) do
