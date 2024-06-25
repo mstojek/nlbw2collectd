@@ -26,6 +26,8 @@ end
 
 local function lookup(ip)
     local client
+    collectd.log_info("ENTERING lookup()") 
+    collectd.log_info("IP: " .. ip) 
 
     -- First check the lease file for host name
 --    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
@@ -35,6 +37,7 @@ local function lookup(ip)
 --    client=luci.sys.exec(command)
     client=exec(command)
     client = client:gsub('[%c]', '')
+    collectd.log_info("Lease File client: " .. client) 
 
     if isempty(client) then
         -- Try with nslookup then
@@ -42,6 +45,7 @@ local function lookup(ip)
 --        client = luci.sys.exec(command)
         client=exec(command)
         client = client:gsub('[%c]', '')
+	collectd.log_info("Nslookup client: " .. client) 
     end
 
 
@@ -52,7 +56,8 @@ local function lookup(ip)
     if client == '*' then
         client = ip
     end
-
+	
+    collectd.log_info("Final client: " .. client) 
     return client
 end
 
@@ -69,8 +74,8 @@ function read()
     
     local client = ""
     local ip = value[1]
-    command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
-    local client = exec(command)
+    -- command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
+    -- local client = exec(command)
     local tx_bytes = value[3]
     local tx_packets = value[4]
     local rx_bytes = value[5]
