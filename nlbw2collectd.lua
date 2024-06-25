@@ -70,8 +70,8 @@ function read()
     
     local client = ""
     local ip = value[1]
-    command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
-    local client = exec(command)
+    --command = "nslookup " .. ip .. " | grep 'name = ' | sed -E 's/^.*name = ([a-zA-Z0-9-]+).*$/\\1/'"
+    --local client = exec(command)
     local tx_bytes = value[3]
     local tx_packets = value[4]
     local rx_bytes = value[5]
