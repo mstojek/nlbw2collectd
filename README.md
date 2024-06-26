@@ -29,7 +29,7 @@ Currently only IPv4 is supported, IPv6 support can be added later.
    opkg install luci-lib-jsonc
    ```
    
-3. Copy [lua.conf]([lua.conf) to `collectd config` directory
+3. Copy [lua.conf](lua.conf) to `collectd config` directory
    ```
    cp lua.conf /etc/collectd/conf.d
    ```
