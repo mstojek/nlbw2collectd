@@ -26,8 +26,8 @@ end
 
 local function lookup(ip)
     local client
-    collectd.log_info("ENTERING lookup()") 
-    collectd.log_info("IP: " .. ip) 
+    collectd.log_error("ENTERING lookup()") 
+    collectd.log_error("IP: " .. ip) 
 
     -- First check the lease file for host name
 --    local lease_file=luci.sys.exec("uci get dhcp.@dnsmasq[0].leasefile")
@@ -37,7 +37,7 @@ local function lookup(ip)
 --    client=luci.sys.exec(command)
     client=exec(command)
     client = client:gsub('[%c]', '')
-    collectd.log_info("Lease File client: " .. client) 
+    collectd.log_error("Lease File client: " .. client) 
 
     if isempty(client) then
         -- Try with nslookup then
@@ -45,7 +45,7 @@ local function lookup(ip)
 --        client = luci.sys.exec(command)
         client=exec(command)
         client = client:gsub('[%c]', '')
-	collectd.log_info("Nslookup client: " .. client) 
+	collectd.log_error("Nslookup client: " .. client) 
     end
 
 
@@ -57,17 +57,17 @@ local function lookup(ip)
         client = ip
     end
 	
-    collectd.log_info("Final client: " .. client) 
+    collectd.log_error("Final client: " .. client) 
     return client
 end
 
 
 function read()
-    collectd.log_info("read function called")
+    collectd.log_error("read function called")
 --    local json = luci.sys.exec("/usr/sbin/nlbw -c json -g ip")
     local json = exec("/usr/sbin/nlbw -c json -g ip")
-    collectd.log_info("exec function called")
-    collectd.log_info("Json: " .. json)
+    collectd.log_error("exec function called")
+    collectd.log_error("Json: " .. json)
     local pjson = luci.jsonc.parse(json) 
     
     for index, value in ipairs(pjson.data) do
@@ -86,7 +86,7 @@ function read()
 
     client = lookup(ip)
 
-    collectd.log_info("ip: " .. ip .. " , client: " .. client .. " , tx_bytes:" .. tx_bytes .. " , rx_bytes:" .. rx_bytes)
+    collectd.log_error("ip: " .. ip .. " , client: " .. client .. " , tx_bytes:" .. tx_bytes .. " , rx_bytes:" .. rx_bytes)
 
         tx_b = {
             host = HOSTNAME,
