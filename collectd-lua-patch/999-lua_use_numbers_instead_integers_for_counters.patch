@@ -1,0 +1,14 @@
+--- a/src/utils_lua.c
++++ b/src/utils_lua.c
+@@ -170,9 +170,9 @@ value_t luaC_tovalue(lua_State *L, int i
+   if (ds_type == DS_TYPE_GAUGE)
+     v.gauge = (gauge_t)lua_tonumber(L, /* stack pos = */ -1);
+   else if (ds_type == DS_TYPE_DERIVE)
+-    v.derive = (derive_t)lua_tointeger(L, /* stack pos = */ -1);
++    v.derive = (derive_t)lua_tonumber(L, /* stack pos = */ -1);
+   else if (ds_type == DS_TYPE_COUNTER)
+-    v.counter = (counter_t)lua_tointeger(L, /* stack pos = */ -1);
++    v.counter = (counter_t)lua_tonumber(L, /* stack pos = */ -1);
+   else if (ds_type == DS_TYPE_ABSOLUTE)
+     v.absolute = (absolute_t)lua_tointeger(L, /* stack pos = */ -1);
+ 
