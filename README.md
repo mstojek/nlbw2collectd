@@ -67,7 +67,7 @@ Make sure that Iptmon is not installed since this plugin and Iptmon can not coex
 
 # Export to Influx DB and Grafana
 
-By exporting data to external Influxdb/Grafana you can get more pleasant charts. Instruction can be found at [Github](https://github.com/mstojek/gociwd)
+By exporting data to external Influxdb/Grafana server you can get more pleasant charts. Instruction can be found at [Github](https://github.com/mstojek/gociwd)
 
 ![Grafana RX chart](graphics/Grafana_Nlbwmon_rx_chart.jpg)
 ![Grafana TX chart](graphics/Grafana_Nlbwmon_tx_chart.jpg)
