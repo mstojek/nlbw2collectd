@@ -67,7 +67,7 @@ Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon
 
 # Eksport statystyk do Influx DB i Grafany
 
-Statystyki mozna wyeksportować do Influxdb/Grafany dzięki czemu można uzyskać znacznie lepsze wykresy. Instrukcje mozna znaleźć na [Github](https://github.com/mstojek/gociwd)
+Statystyki mozna wyeksportować do Influxdb/Grafany dzięki czemu można uzyskać znacznie ładniejsze wykresy. Instrukcje mozna znaleźć na [Github](https://github.com/mstojek/gociwd)
 
 ![Grafana RX chart](graphics/Grafana_Nlbwmon_rx_chart.jpg)
 ![Grafana TX chart](graphics/Grafana_Nlbwmon_tx_chart.jpg)
