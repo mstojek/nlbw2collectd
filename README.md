@@ -1,3 +1,5 @@
+[Instrukcja po polsku](Readme-pl.md)
+
 # nlbw2collectd
 This collectd lua plugin allows you to put [Nlbwmon](https://github.com/jow-/nlbwmon) statistics directly to Collectd (luci-app-statistics). By default on Openwrt statistics are uploaded every 30 seconds, so it allows you to get pseudo realtime statistic about the traffic on your router.
 
