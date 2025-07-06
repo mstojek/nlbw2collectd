@@ -19,14 +19,15 @@ Another required library is collectd-mod-lua.
 
 2. Make sure that `luci-lib-jsonc` and `luci-lib-ip` are installed:
    ```console
-   # opkg list-installed | grep -E 'luci-lib-jsonc|luci-lib-ip'
+   # opkg list-installed | grep -E 'luci-lib-jsonc|luci-lib-ip|libubus-lua'
    [...]
    luci-lib-ip - 25.163.46283~ec8edb4
    luci-lib-jsonc - 25.163.46283~ec8edb4
+   libubus-lua - xx.yy.zzzz-zzzzz
    ```
    If it is not installed install this with:
    ```console
-   # opkg install luci-lib-jsonc luci-lib-ip
+   # opkg install luci-lib-jsonc luci-lib-ip libubus-lua
    ```
 
 3. Copy [lua.conf](lua.conf) to `collectd config` directory
