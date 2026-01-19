@@ -80,7 +80,11 @@ end
 -- Fetch all the statistics
 local function read()
     local json = exec("/usr/sbin/nlbw -c json -g ip")
+	if not json_output or json_output == "" then return end
+	
     local pjson = jsonc.parse(json)
+    if not pjson or not pjson.data then return end
+	
     local values = {}
 
     -- Aggregate the values for each client
