@@ -79,10 +79,10 @@ end
 
 -- Fetch all the statistics
 local function read()
-    local json = exec("/usr/sbin/nlbw -c json -g ip")
+    local json_output = exec("/usr/sbin/nlbw -c json -g ip")
 	if not json_output or json_output == "" then return end
 	
-    local pjson = jsonc.parse(json)
+    local pjson = jsonc.parse(json_output)
     if not pjson or not pjson.data then return end
 	
     local values = {}
