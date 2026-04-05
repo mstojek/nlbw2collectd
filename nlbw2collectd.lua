@@ -11,7 +11,6 @@ local TYPE_INSTANCE_PREFIX_TX = "tx_"
 
 -- Load the necessary modules
 local io     = require "io"
-local ip_lib = require "luci.ip" -- Requires "luci-lib-ip" (~12kB installed)
 local jsonc  = require "luci.jsonc" -- Requires "luci-lib-jsonc" (~5.1kB installed)
 local ubus   = (require "ubus").connect()
 
@@ -34,43 +33,24 @@ local function exec(command)
 	return data
 end
 
--- IPv6 addresses can be in various formats (hex character letter case, ::
--- compression, leading zeros, etc.), so we'll normalize them here.
-local function normalize_ip(ip_str)
-    return ip_lib.new(ip_str):string()
-end
-
--- Map IP addresses to hostnames by using the getHostHints ubus procedure.
-local ip_to_host = {}
+-- Map MAC addresses to hostnames by using the getHostHints ubus procedure.
+local mac_to_host = {}
 local function refresh_hosts()
     local hosts = ubus:call("luci-rpc", "getHostHints", {})
+    if not hosts then return end
 
+    mac_to_host = {}
     for mac, data in pairs(hosts) do
-        local name = data.name
-
-        for _, ipv4 in ipairs(data.ipaddrs or {}) do
-            ipv4 = normalize_ip(ipv4)
-            ip_to_host[ipv4] = name
-        end
-        for _, ipv6 in ipairs(data.ip6addrs or {}) do
-            ipv6 = normalize_ip(ipv6)
-            ip_to_host[ipv6] = name
-        end
+        mac_to_host[mac:upper()] = data.name
     end
 end
 
--- Function to find a hostname from an IP address
-local function get_hostname(ip)
-    ip = normalize_ip(ip)
-    local hostname = ip_to_host[ip]
+-- Function to find a hostname from a MAC address
+local function get_hostname(mac)
+    local hostname = mac_to_host[mac]
 
-    if not hostname then
-        -- Refresh the list of hosts if the MAC is not found
-        refresh_hosts()
-        hostname = ip_to_host[ip]
-        if not hostname then
-            return ip
-        end
+    if not hostname or hostname == "" then
+        return mac
     end
 
     -- Extract only the hostname without domain
@@ -79,23 +59,25 @@ end
 
 -- Fetch all the statistics
 local function read()
-    local json_output = exec("/usr/sbin/nlbw -c json -g ip")
+    refresh_hosts()
+
+    local json_output = exec("/usr/sbin/nlbw -c json -g mac")
 	if not json_output or json_output == "" then return end
-	
+
     local pjson = jsonc.parse(json_output)
     if not pjson or not pjson.data then return end
-	
+
     local values = {}
 
     -- Aggregate the values for each client
     for _, value in ipairs(pjson.data) do
-        local ip = value[1]
+        local mac = value[1]:upper()
         local tx_bytes = value[3]
         local tx_packets = value[4]
         local rx_bytes = value[5]
         local rx_packets = value[6]
 
-        local client = get_hostname(ip)
+        local client = get_hostname(mac)
 
         -- collectd only accepts a single value for each
         -- plugin_instance/type_instance, but with IPv4 and IPv6, a single host
@@ -107,12 +89,10 @@ local function read()
             rx_packets = 0
         }
 
-        -- collectd can only handle signed 32-bit integers, so we'll wrap any
-        -- values greater than this.
-        value.tx_bytes   = (value.tx_bytes   + tx_bytes  ) % 0x7fffffff
-        value.rx_bytes   = (value.rx_bytes   + rx_bytes  ) % 0x7fffffff
-        value.tx_packets = (value.tx_packets + tx_packets) % 0x7fffffff
-        value.rx_packets = (value.rx_packets + rx_packets) % 0x7fffffff
+        value.tx_bytes   = (value.tx_bytes   + tx_bytes  )
+        value.rx_bytes   = (value.rx_bytes   + rx_bytes  )
+        value.tx_packets = (value.tx_packets + tx_packets)
+        value.rx_packets = (value.rx_packets + rx_packets)
 
         values[client] = value
     end
@@ -162,7 +142,7 @@ end
 collectd.register_read(function()
     local ok, err = pcall(read)
     if not ok then
-        collectd.log_error("Error in read function: " .. tostring(err))
+        collectd.error("Error in read function: " .. tostring(err))
     end
     return 0
 end)
