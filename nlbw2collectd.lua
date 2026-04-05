@@ -55,31 +55,46 @@ local function parse_csv_line(line)
     return res
 end
 
--- Map MAC addresses to hostnames by using the getHostHints ubus procedure.
-local mac_to_host = {}
+-- Map IP addresses to hostnames by using the getHostHints ubus procedure.
+local ip_to_host = {}
 local function refresh_hosts()
     if not ubus then return end
     local hosts = ubus:call("luci-rpc", "getHostHints", {}) or {}
 
     for mac, data in pairs(hosts) do
-        if data.name then
-            mac_to_host[mac:lower()] = data.name
+        local name = data.name
+        if name then
+            for _, ipv4 in ipairs(data.ipaddrs or {}) do
+                ip_to_host[ipv4] = name
+            end
+            for _, ipv6 in ipairs(data.ip6addrs or {}) do
+                ip_to_host[ipv6] = name
+            end
         end
     end
 end
 
--- Function to find a hostname from a MAC address
-local function get_hostname(mac)
-    mac = mac:lower()
-    local hostname = mac_to_host[mac]
+-- Function to find a hostname from an IP address
+local function get_hostname(ip)
+    local hostname = ip_to_host[ip]
 
     if not hostname then
-        -- Refresh the list of hosts if the MAC is not found
+        -- Refresh the list of hosts if the IP is not found
         refresh_hosts()
-        hostname = mac_to_host[mac]
+        hostname = ip_to_host[ip]
+
         if not hostname then
-            -- If still no hostname, return MAC without colons
-            return mac:gsub(":", "")
+            -- Fallback to nslookup for environments without a local DHCP server (like Access Points)
+            local res = exec("nslookup " .. ip .. " 2>/dev/null")
+            if res then
+                hostname = res:match("name = ([^%s\r\n]+)")
+            end
+
+            if not hostname then
+                -- Use IP as hostname if resolution fails
+                hostname = ip
+            end
+            ip_to_host[ip] = hostname
         end
     end
 
@@ -89,7 +104,7 @@ end
 
 -- Fetch all the statistics
 local function read()
-    local output = exec("/usr/sbin/nlbw -c csv -g mac -n")
+    local output = exec("/usr/sbin/nlbw -c csv -g ip -n")
 	if not output or output == "" then return end
 	
     local lines = {}
@@ -104,7 +119,7 @@ local function read()
         cols[h:lower()] = i
     end
 
-    local idx_mac = cols["mac"] or 1
+    local idx_ip = cols["ip"] or 1
     local idx_rx_bytes = cols["received bytes"] or 3
     local idx_rx_packets = cols["received packets"] or 4
     local idx_tx_bytes = cols["transmitted bytes"] or 5
@@ -115,9 +130,9 @@ local function read()
     -- Aggregate the values for each client
     for i = 2, #lines do
         local row = parse_csv_line(lines[i])
-        local mac = row[idx_mac]
+        local ip = row[idx_ip]
 
-        if mac and mac ~= "" and mac ~= "00:00:00:00:00:00" then
+        if ip and ip ~= "" then
             -- Note: nlbw "Received" means traffic from client to router (Upload)
             --       nlbw "Transmitted" means traffic from router to client (Download)
             local received_bytes = tonumber(row[idx_rx_bytes]) or 0
@@ -125,7 +140,7 @@ local function read()
             local transmitted_bytes = tonumber(row[idx_tx_bytes]) or 0
             local transmitted_packets = tonumber(row[idx_tx_packets]) or 0
 
-            local client = get_hostname(mac)
+            local client = get_hostname(ip)
 
             local value = values[client] or {
                 tx_bytes = 0,
@@ -134,7 +149,7 @@ local function read()
                 rx_packets = 0
             }
 
-            -- Summing up (e.g. if multiple MACs resolve to same hostname)
+            -- Summing up (e.g. if multiple IPs resolve to same hostname)
             -- We keep original mapping: Received (Upload) -> TX chart, Transmitted (Download) -> RX chart
             value.tx_bytes   = value.tx_bytes   + received_bytes
             value.tx_packets = value.tx_packets + received_packets
