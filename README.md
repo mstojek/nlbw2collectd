@@ -56,7 +56,7 @@ local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptm
 Make sure that Iptmon is not installed since this plugin and Iptmon can not coexist.
 
 # Automated Builds
-You can find pre-built `.ipk` (for older OpenWrt versions) and `.apk` (for OpenWrt 25.12+) packages in the [Releases](https://github.com/mstojek/nlbw2collectd/releases) section of this repository.
+You can find pre-built architecture-independent (`noarch`) `.ipk` (for older OpenWrt versions) and `.apk` (for OpenWrt 25.12+) packages in the [Releases](https://github.com/mstojek/nlbw2collectd/releases) section of this repository. These packages can be installed on any OpenWrt-supported device.
 
 # Example pictures
 

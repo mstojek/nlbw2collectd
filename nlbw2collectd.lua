@@ -98,8 +98,11 @@ local function get_hostname(ip)
         end
     end
 
-    -- Extract only the hostname without domain
-    return hostname:match("^([^.]+)")
+    -- Extract only the hostname without domain (if it's not an IP)
+    if hostname:match("^[0-9.]+$") or hostname:match(":") then
+        return hostname
+    end
+    return hostname:match("^([^.]+)") or hostname
 end
 
 -- Fetch all the statistics
@@ -150,7 +153,7 @@ local function read()
             }
 
             -- Summing up (e.g. if multiple IPs resolve to same hostname)
-            -- We keep original mapping: Received (Upload) -> TX chart, Transmitted (Download) -> RX chart
+            -- Keep original mapping: Received (Upload) -> TX chart, Transmitted (Download) -> RX chart
             value.tx_bytes   = value.tx_bytes   + received_bytes
             value.tx_packets = value.tx_packets + received_packets
             value.rx_bytes   = value.rx_bytes   + transmitted_bytes

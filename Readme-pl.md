@@ -54,7 +54,7 @@ local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptm
 Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon i ten plugin nie mogą być zainstalowane jednoczesnie.
 
 # Gotowe paczki (Automatyczne budowanie)
-Możesz znaleźć gotowe pakiety `.ipk` (dla starszych wersji OpenWrt) oraz `.apk` (dla OpenWrt 25.12+) w sekcji [Releases](https://github.com/mstojek/nlbw2collectd/releases) tego repozytorium.
+Możesz znaleźć gotowe pakiety `.ipk` (dla starszych wersji OpenWrt) oraz `.apk` (dla OpenWrt 25.12+) w sekcji [Releases](https://github.com/mstojek/nlbw2collectd/releases) tego repozytorium. Pakiety są niezależne od architektury (`noarch`) i można je zainstalować na każdym urządzeniu wspieranym przez OpenWrt.
 
 # Przykładowe wykresy
 
