@@ -5,28 +5,22 @@ Nlbw2collectd jest pluginem Lua do Collectd który pozwala wrzucić statystyki [
 Przez kilka lat używałem programu [Iptmon](https://github.com/oofnikj/iptmon) do analizy ruchu (per host) w mojej sieci. Niestety od wydania Openwrt 22.03 [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze wzgladu na zamiane Iptables na Nftables. Okazało sie jednak ze nie ma żadnej dobrej alternatywy dla [Iptmon](https://github.com/oofnikj/iptmon), dlatego wpadłem na pomysł eksportowania danych z [Nlbwmon](https://github.com/jow-/nlbwmon) do Collectd.
 
 # Zależności
-Dla poprawnego działania pluginy należy miec zainstalowane Luci i luci-app-statistics installed. Plugin używa biblioteki lua luci.jsonc która powinna byc automatycznie dostepna jeżeli mamy zainstalowane Luci, jeżeli tak nie jest trzeba ja doinstalować (szczegóły poniżej). 
-Kolejną niezbedna biblioteką jest collectd-mod-lua
+Dla poprawnego działania pluginu należy mieć zainstalowane Luci i luci-app-statistics.
+Wymaganymi bibliotekami są `collectd-mod-lua` oraz `libubus-lua`.
 
-# Ograniczenia
-Aktualnie wspierane jest tylko IPv4, wsparcie dla IPv6 może być dodane później
- 
 # Instrukcja instalacji
-1. Sprawdź czy na Openwrt jest zainstalowane `collectd-mod-lua` jezeli nie to wykonujemy:
+1. Sprawdź czy na Openwrt są zainstalowane `collectd-mod-lua` i `libubus-lua`, jeżeli nie to wykonujemy:
    ```
    opkg update
-   opkg install collectd-mod-lua
+   opkg install collectd-mod-lua libubus-lua
    ```
 
-2. Sprawdź czy na Openwrt jest zainstalowane  `luci-lib-jsonc` :
-   ```
-   opkg list-installed | grep luci-lib-jsonc
+2. Sprawdź czy biblioteki są zainstalowane:
+   ```console
+   # opkg list-installed | grep -E 'collectd-mod-lua|libubus-lua'
    [...]
-   luci-lib-jsonc - git-22.097.61937-bc85ba5
-   ```
-   Jeżeli go nie ma to wykonujemy:
-   ```
-   opkg install luci-lib-jsonc
+   collectd-mod-lua - xx.yy.zzzz-zzzzz
+   libubus-lua - xx.yy.zzzz-zzzzz
    ```
    
 3. Kopiujemy [lua.conf](lua.conf) do `katalogu konfiguracyjnego collectd` 
@@ -58,6 +52,9 @@ local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptm
 ```
 
 Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon i ten plugin nie mogą być zainstalowane jednoczesnie.
+
+# Gotowe paczki (Automatyczne budowanie)
+Możesz znaleźć gotowe pakiety `.ipk` (dla starszych wersji OpenWrt) oraz `.apk` (dla OpenWrt 25.12+) w sekcji [Releases](https://github.com/mstojek/nlbw2collectd/releases) tego repozytorium. Pakiety są niezależne od architektury (`noarch`) i można je zainstalować na każdym urządzeniu wspieranym przez OpenWrt.
 
 # Przykładowe wykresy
 

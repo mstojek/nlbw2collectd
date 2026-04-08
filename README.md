@@ -7,27 +7,22 @@ This collectd lua plugin allows you to put [Nlbwmon](https://github.com/jow-/nlb
 I have been using [Iptmon](https://github.com/oofnikj/iptmon) tool to get very nice statistics of per host traffic on my Openwrt router. Unfortunatelly starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to replacement of iptables with nftables. When looking for alternatives I was not able to find anything what was close to Iptmon and working on latest Openwrt releases. I found [Nlbwmon](https://github.com/jow-/nlbwmon) to be very nice tool but what I was missing was more detailed per hour statistics with nice charts.
 
 # Dependencies
-This plugin assumes that you have Luci and luci-app-statistics installed. This plugin uses the `luci.jsonc` and `luci.ip` lua libraries that should be bundled with Luci, if that is not the case you need to install this (details below).
-Another required library is collectd-mod-lua.
+This plugin assumes that you have Luci and luci-app-statistics installed.
+Required libraries are `collectd-mod-lua` and `libubus-lua`.
 
 # Installation instructions.
-1. Make sure that you have `collectd-mod-lua` installed on you openwrt router if not execute:
+1. Make sure that you have `collectd-mod-lua` and `libubus-lua` installed on you openwrt router if not execute:
    ```
    opkg update
-   opkg install collectd-mod-lua
+   opkg install collectd-mod-lua libubus-lua
    ```
 
-2. Make sure that `luci-lib-jsonc` and `luci-lib-ip` are installed:
+2. Check if the libraries are installed:
    ```console
-   # opkg list-installed | grep -E 'luci-lib-jsonc|luci-lib-ip|libubus-lua'
+   # opkg list-installed | grep -E 'collectd-mod-lua|libubus-lua'
    [...]
-   luci-lib-ip - 25.163.46283~ec8edb4
-   luci-lib-jsonc - 25.163.46283~ec8edb4
+   collectd-mod-lua - xx.yy.zzzz-zzzzz
    libubus-lua - xx.yy.zzzz-zzzzz
-   ```
-   If it is not installed install this with:
-   ```console
-   # opkg install luci-lib-jsonc luci-lib-ip libubus-lua
    ```
 
 3. Copy [lua.conf](lua.conf) to `collectd config` directory
@@ -59,6 +54,9 @@ local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptm
 ```
 
 Make sure that Iptmon is not installed since this plugin and Iptmon can not coexist.
+
+# Automated Builds
+You can find pre-built architecture-independent (`noarch`) `.ipk` (for older OpenWrt versions) and `.apk` (for OpenWrt 25.12+) packages in the [Releases](https://github.com/mstojek/nlbw2collectd/releases) section of this repository. These packages can be installed on any OpenWrt-supported device.
 
 # Example pictures
 

@@ -1,0 +1,51 @@
+name: Build OpenWrt Package (noarch)
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build Package (noarch)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v4
+
+      - name: Build Package
+        uses: openwrt/gh-action-sdk@v1
+        env:
+          ARCH: x86/64
+          PKG_NAME: nlbw2collectd
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: nlbw2collectd-noarch
+          path: |
+            bin/packages/*/base/nlbw2collectd*.ipk
+            bin/packages/*/base/nlbw2collectd*.apk
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare Assets
+        run: |
+          mkdir -p release-assets
+          find artifacts -name "*.ipk" -exec cp {} release-assets/ \;
+          find artifacts -name "*.apk" -exec cp {} release-assets/ \;
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-assets/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

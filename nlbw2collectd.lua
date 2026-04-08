@@ -10,21 +10,22 @@ local TYPE_INSTANCE_PREFIX_TX = "tx_"
 -- End of configuration options
 
 -- Load the necessary modules
-local io     = require "io"
-local ip_lib = require "luci.ip" -- Requires "luci-lib-ip" (~12kB installed)
-local jsonc  = require "luci.jsonc" -- Requires "luci-lib-jsonc" (~5.1kB installed)
-local ubus   = (require "ubus").connect()
+local io = require "io"
+local has_ubus, ubus_mod = pcall(require, "ubus")
+local ubus = has_ubus and ubus_mod.connect()
 
 -- Save some often-used global functions as local variables for a slight speed
 -- boost.
-local pairs, ipairs = pairs, ipairs
+local pairs, ipairs, tonumber = pairs, ipairs, tonumber
 
 -- Helper function to execute a shell command and return its output
 local function exec(command)
 	local pp, err = io.popen(command)
     if not pp then
-        collectd.error("nlbw2collectd: Failed to execute command '" ..
-                       command .. "': " .. err)
+        if collectd then
+            collectd.error("nlbw2collectd: Failed to execute command '" ..
+                           command .. "': " .. err)
+        end
         return nil
     end
 
@@ -34,87 +35,133 @@ local function exec(command)
 	return data
 end
 
--- IPv6 addresses can be in various formats (hex character letter case, ::
--- compression, leading zeros, etc.), so we'll normalize them here.
-local function normalize_ip(ip_str)
-    return ip_lib.new(ip_str):string()
+-- Simple CSV parser
+local function parse_csv_line(line)
+    local res = {}
+    local start = 1
+    while true do
+        local comma = line:find(",", start)
+        if not comma then
+            table.insert(res, line:sub(start))
+            break
+        end
+        table.insert(res, line:sub(start, comma - 1))
+        start = comma + 1
+    end
+    for i, v in ipairs(res) do
+        -- Remove quotes if present
+        res[i] = v:gsub('^"(.*)"$', "%1")
+    end
+    return res
 end
 
 -- Map IP addresses to hostnames by using the getHostHints ubus procedure.
 local ip_to_host = {}
 local function refresh_hosts()
-    local hosts = ubus:call("luci-rpc", "getHostHints", {})
+    if not ubus then return end
+    local hosts = ubus:call("luci-rpc", "getHostHints", {}) or {}
 
     for mac, data in pairs(hosts) do
         local name = data.name
-
-        for _, ipv4 in ipairs(data.ipaddrs or {}) do
-            ipv4 = normalize_ip(ipv4)
-            ip_to_host[ipv4] = name
-        end
-        for _, ipv6 in ipairs(data.ip6addrs or {}) do
-            ipv6 = normalize_ip(ipv6)
-            ip_to_host[ipv6] = name
+        if name then
+            for _, ipv4 in ipairs(data.ipaddrs or {}) do
+                ip_to_host[ipv4] = name
+            end
+            for _, ipv6 in ipairs(data.ip6addrs or {}) do
+                ip_to_host[ipv6] = name
+            end
         end
     end
 end
 
 -- Function to find a hostname from an IP address
 local function get_hostname(ip)
-    ip = normalize_ip(ip)
     local hostname = ip_to_host[ip]
 
     if not hostname then
-        -- Refresh the list of hosts if the MAC is not found
+        -- Refresh the list of hosts if the IP is not found
         refresh_hosts()
         hostname = ip_to_host[ip]
+
         if not hostname then
-            return ip
+            -- Fallback to nslookup for environments without a local DHCP server (like Access Points)
+            local res = exec("nslookup " .. ip .. " 2>/dev/null")
+            if res then
+                -- Try to match standard 'name = ...' and BusyBox 'Name: ...' formats
+                hostname = res:match("name = ([^%s\r\n]+)") or res:match("Name:%s*([^%s\r\n]+)")
+            end
+
+            if not hostname then
+                -- Use IP as hostname if resolution fails
+                hostname = ip
+            end
+            ip_to_host[ip] = hostname
         end
     end
 
-    -- Extract only the hostname without domain
-    return hostname:match("^([^.]+)")
+    -- Extract only the hostname without domain (if it's not an IP)
+    if hostname:match("^[0-9.]+$") or hostname:match(":") then
+        return hostname
+    end
+    return hostname:match("^([^.]+)") or hostname
 end
 
 -- Fetch all the statistics
 local function read()
-    local json_output = exec("/usr/sbin/nlbw -c json -g ip")
-	if not json_output or json_output == "" then return end
+    local output = exec("/usr/sbin/nlbw -c csv -g ip -n")
+	if not output or output == "" then return end
 	
-    local pjson = jsonc.parse(json_output)
-    if not pjson or not pjson.data then return end
+    local lines = {}
+    for line in output:gmatch("[^\r\n]+") do
+        table.insert(lines, line)
+    end
+    if #lines < 2 then return end
+
+    local header = parse_csv_line(lines[1])
+    local cols = {}
+    for i, h in ipairs(header) do
+        cols[h:lower()] = i
+    end
+
+    local idx_ip = cols["ip"] or 1
+    local idx_rx_bytes = cols["received bytes"] or 3
+    local idx_rx_packets = cols["received packets"] or 4
+    local idx_tx_bytes = cols["transmitted bytes"] or 5
+    local idx_tx_packets = cols["transmitted packets"] or 6
 	
     local values = {}
 
     -- Aggregate the values for each client
-    for _, value in ipairs(pjson.data) do
-        local ip = value[1]
-        local tx_bytes = value[3]
-        local tx_packets = value[4]
-        local rx_bytes = value[5]
-        local rx_packets = value[6]
+    for i = 2, #lines do
+        local row = parse_csv_line(lines[i])
+        local ip = row[idx_ip]
 
-        local client = get_hostname(ip)
+        if ip and ip ~= "" then
+            -- Note: nlbw "Received" means traffic from client to router (Upload)
+            --       nlbw "Transmitted" means traffic from router to client (Download)
+            local received_bytes = tonumber(row[idx_rx_bytes]) or 0
+            local received_packets = tonumber(row[idx_rx_packets]) or 0
+            local transmitted_bytes = tonumber(row[idx_tx_bytes]) or 0
+            local transmitted_packets = tonumber(row[idx_tx_packets]) or 0
 
-        -- collectd only accepts a single value for each
-        -- plugin_instance/type_instance, but with IPv4 and IPv6, a single host
-        -- can have multiple IPs, so we'll need to sum them here.
-        local value = values[client] or {
-            tx_bytes = 0,
-            tx_packets = 0,
-            rx_bytes = 0,
-            rx_packets = 0
-        }
+            local client = get_hostname(ip)
 
-        -- collectd can only handle signed 32-bit integers, so we'll wrap any
-        -- values greater than this.
-        value.tx_bytes   = (value.tx_bytes   + tx_bytes  ) % 0x7fffffff
-        value.rx_bytes   = (value.rx_bytes   + rx_bytes  ) % 0x7fffffff
-        value.tx_packets = (value.tx_packets + tx_packets) % 0x7fffffff
-        value.rx_packets = (value.rx_packets + rx_packets) % 0x7fffffff
+            local value = values[client] or {
+                tx_bytes = 0,
+                tx_packets = 0,
+                rx_bytes = 0,
+                rx_packets = 0
+            }
 
-        values[client] = value
+            -- Summing up (e.g. if multiple IPs resolve to same hostname)
+            -- Keep original mapping: Received (Upload) -> TX chart, Transmitted (Download) -> RX chart
+            value.tx_bytes   = value.tx_bytes   + received_bytes
+            value.tx_packets = value.tx_packets + received_packets
+            value.rx_bytes   = value.rx_bytes   + transmitted_bytes
+            value.rx_packets = value.rx_packets + transmitted_packets
+
+            values[client] = value
+        end
     end
 
     -- Send the values to collectd
@@ -159,10 +206,12 @@ end
 
 -- We'll catch any errors in the read function here so that they don't propagate
 -- into collectd.
-collectd.register_read(function()
-    local ok, err = pcall(read)
-    if not ok then
-        collectd.log_error("Error in read function: " .. tostring(err))
-    end
-    return 0
-end)
+if collectd then
+    collectd.register_read(function()
+        local ok, err = pcall(read)
+        if not ok then
+            collectd.error("nlbw2collectd: Error in read function: " .. tostring(err))
+        end
+        return 0
+    end)
+end
