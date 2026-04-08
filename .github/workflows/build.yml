@@ -13,8 +13,8 @@ jobs:
       fail-fast: false
       matrix:
         arch:
-          - x86-64-23.05.5
           - x86-64-24.10.0
+          - x86-64-25.12.2
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -24,7 +24,6 @@ jobs:
         env:
           ARCH: ${{ matrix.arch }}
           PKG_NAME: nlbw2collectd
-          INDEX: 1
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
