@@ -7,8 +7,14 @@ on:
 
 jobs:
   build:
-    name: Build Package (noarch)
+    name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          - x86-64-23.05.5
+          - x86-64-24.10.0
     steps:
       - name: Checkout Source
         uses: actions/checkout@v4
@@ -16,30 +22,34 @@ jobs:
       - name: Build Package
         uses: openwrt/gh-action-sdk@v1
         env:
-          ARCH: x86/64
+          ARCH: ${{ matrix.arch }}
           PKG_NAME: nlbw2collectd
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: nlbw2collectd-noarch
-          path: bin/packages/*/base/nlbw2collectd*.ipk
+          name: nlbw2collectd-${{ matrix.arch }}
+          path: bin/packages/*/base/nlbw2collectd*
 
   release:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
     steps:
       - name: Download Artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
           find artifacts -name "*.ipk" -exec cp {} release-assets/ \;
           find artifacts -name "*.apk" -exec cp {} release-assets/ \;
+          ls -R release-assets/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
