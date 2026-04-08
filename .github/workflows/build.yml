@@ -29,7 +29,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: nlbw2collectd-${{ matrix.arch }}
-          path: bin/packages/*/base/nlbw2collectd*
+          path: bin/packages/**/nlbw2collectd*
 
   release:
     name: Create GitHub Release
