@@ -20,7 +20,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Build Package
-        uses: openwrt/gh-action-sdk@v1
+        uses: openwrt/gh-action-sdk@main
         env:
           ARCH: ${{ matrix.arch }}
           PKG_NAME: nlbw2collectd
