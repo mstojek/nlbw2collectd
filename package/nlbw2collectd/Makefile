@@ -5,6 +5,7 @@ PKG_VERSION:=0.0.5
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Marek Stojek <mstojek@gmail.com>
 PKG_LICENSE:=MIT
+PKG_ARCH:=all
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -14,7 +15,7 @@ define Package/nlbw2collectd
   TITLE:=Nlbwmon to Collectd traffic statistics exporter
   DEPENDS:=+collectd-mod-lua +libubus-lua +nlbwmon
   URL:=https://github.com/mstojek/nlbw2collectd
-  PKG_ARCH:=all
+  Architecture:=all
 endef
 
 define Package/nlbw2collectd/description
