@@ -14,13 +14,11 @@ local io = require "io"
 local has_ubus, ubus_mod = pcall(require, "ubus")
 local ubus = has_ubus and ubus_mod.connect()
 
--- Save some often-used global functions as local variables for a slight speed
--- boost.
 local pairs, ipairs, tonumber = pairs, ipairs, tonumber
 
 -- Helper function to execute a shell command and return its output
 local function exec(command)
-	local pp, err = io.popen(command)
+    local pp, err = io.popen(command)
     if not pp then
         if collectd then
             collectd.error("nlbw2collectd: Failed to execute command '" ..
@@ -29,28 +27,18 @@ local function exec(command)
         return nil
     end
 
-	local data = pp:read("*a")
-	pp:close()
+    local data = pp:read("*a")
+    pp:close()
 
-	return data
+    return data
 end
 
--- Simple CSV parser
+-- Poprawiony parser obsługujący cudzysłowy, przecinki i tabulatory
 local function parse_csv_line(line)
     local res = {}
-    local start = 1
-    while true do
-        local comma = line:find(",", start)
-        if not comma then
-            table.insert(res, line:sub(start))
-            break
-        end
-        table.insert(res, line:sub(start, comma - 1))
-        start = comma + 1
-    end
-    for i, v in ipairs(res) do
-        -- Remove quotes if present
-        res[i] = v:gsub('^"(.*)"$', "%1")
+    -- Wyrażenie regularne wyciągające tekst spomiędzy cudzysłowów lub oddzielony spacjami/tabulatorami
+    for v in line:gmatch('"?([^"%s,\t]+)"?') do
+        table.insert(res, v)
     end
     return res
 end
@@ -79,26 +67,22 @@ local function get_hostname(ip)
     local hostname = ip_to_host[ip]
 
     if not hostname then
-        -- Refresh the list of hosts if the IP is not found
         refresh_hosts()
         hostname = ip_to_host[ip]
 
         if not hostname then
-            -- Fallback to nslookup for environments without a local DHCP server (like Access Points)
             local res = exec("nslookup " .. ip .. " 2>/dev/null")
             if res then
                 hostname = res:match("name = ([^%s\r\n]+)")
             end
 
             if not hostname then
-                -- Use IP as hostname if resolution fails
                 hostname = ip
             end
             ip_to_host[ip] = hostname
         end
     end
 
-    -- Extract only the hostname without domain (if it's not an IP)
     if hostname:match("^[0-9.]+$") or hostname:match(":") then
         return hostname
     end
@@ -108,8 +92,8 @@ end
 -- Fetch all the statistics
 local function read()
     local output = exec("/usr/sbin/nlbw -c csv -g ip -n")
-	if not output or output == "" then return end
-	
+    if not output or output == "" then return end
+    
     local lines = {}
     for line in output:gmatch("[^\r\n]+") do
         table.insert(lines, line)
@@ -122,22 +106,20 @@ local function read()
         cols[h:lower()] = i
     end
 
+    -- Dopasowanie kolumn do rzeczywistego wyjścia nlbw
     local idx_ip = cols["ip"] or 1
-    local idx_rx_bytes = cols["received bytes"] or 3
-    local idx_rx_packets = cols["received packets"] or 4
-    local idx_tx_bytes = cols["transmitted bytes"] or 5
-    local idx_tx_packets = cols["transmitted packets"] or 6
-	
+    local idx_rx_bytes = cols["rx_bytes"] or 3
+    local idx_rx_packets = cols["rx_pkts"] or 4
+    local idx_tx_bytes = cols["tx_bytes"] or 5
+    local idx_tx_packets = cols["tx_pkts"] or 6
+    
     local values = {}
 
-    -- Aggregate the values for each client
     for i = 2, #lines do
         local row = parse_csv_line(lines[i])
         local ip = row[idx_ip]
 
         if ip and ip ~= "" then
-            -- Note: nlbw "Received" means traffic from client to router (Upload)
-            --       nlbw "Transmitted" means traffic from router to client (Download)
             local received_bytes = tonumber(row[idx_rx_bytes]) or 0
             local received_packets = tonumber(row[idx_rx_packets]) or 0
             local transmitted_bytes = tonumber(row[idx_tx_bytes]) or 0
@@ -152,8 +134,7 @@ local function read()
                 rx_packets = 0
             }
 
-            -- Summing up (e.g. if multiple IPs resolve to same hostname)
-            -- Keep original mapping: Received (Upload) -> TX chart, Transmitted (Download) -> RX chart
+            -- Sumowanie (Received -> TX chart, Transmitted -> RX chart)
             value.tx_bytes   = value.tx_bytes   + received_bytes
             value.tx_packets = value.tx_packets + received_packets
             value.rx_bytes   = value.rx_bytes   + transmitted_bytes
@@ -163,54 +144,61 @@ local function read()
         end
     end
 
-    -- Send the values to collectd
+    -- Wysyłanie do collectd lub konsoli
     for client, value in pairs(values) do
-        collectd.dispatch_values {
-            host = HOSTNAME,
-            plugin = PLUGIN,
-            plugin_instance = PLUGIN_INSTANCE_TX,
-            type = TYPE_BYTES,
-            type_instance =  TYPE_INSTANCE_PREFIX_TX .. client,
-            values = { value.tx_bytes },
-        }
+        if collectd then
+            collectd.dispatch_values {
+                host = HOSTNAME,
+                plugin = PLUGIN,
+                plugin_instance = PLUGIN_INSTANCE_TX,
+                type = TYPE_BYTES,
+                type_instance =  TYPE_INSTANCE_PREFIX_TX .. client,
+                values = { value.tx_bytes },
+            }
 
-        collectd.dispatch_values {
-            host = HOSTNAME,
-            plugin = PLUGIN,
-            plugin_instance = PLUGIN_INSTANCE_RX,
-            type = TYPE_BYTES,
-            type_instance =  TYPE_INSTANCE_PREFIX_RX .. client,
-            values = { value.rx_bytes },
-        }
+            collectd.dispatch_values {
+                host = HOSTNAME,
+                plugin = PLUGIN,
+                plugin_instance = PLUGIN_INSTANCE_RX,
+                type = TYPE_BYTES,
+                type_instance =  TYPE_INSTANCE_PREFIX_RX .. client,
+                values = { value.rx_bytes },
+            }
 
-        collectd.dispatch_values {
-            host = HOSTNAME,
-            plugin = PLUGIN,
-            plugin_instance = PLUGIN_INSTANCE_TX,
-            type = TYPE_PACKETS,
-            type_instance =  TYPE_INSTANCE_PREFIX_TX .. client,
-            values = { value.tx_packets },
-        }
+            collectd.dispatch_values {
+                host = HOSTNAME,
+                plugin = PLUGIN,
+                plugin_instance = PLUGIN_INSTANCE_TX,
+                type = TYPE_PACKETS,
+                type_instance =  TYPE_INSTANCE_PREFIX_TX .. client,
+                values = { value.tx_packets },
+            }
 
-        collectd.dispatch_values {
-            host = HOSTNAME,
-            plugin = PLUGIN,
-            plugin_instance = PLUGIN_INSTANCE_RX,
-            type = TYPE_PACKETS,
-            type_instance =  TYPE_INSTANCE_PREFIX_RX .. client,
-            values = { value.rx_packets },
-        }
+            collectd.dispatch_values {
+                host = HOSTNAME,
+                plugin = PLUGIN,
+                plugin_instance = PLUGIN_INSTANCE_RX,
+                type = TYPE_PACKETS,
+                type_instance =  TYPE_INSTANCE_PREFIX_RX .. client,
+                values = { value.rx_packets },
+            }
+        else
+            -- Debug dla uruchomienia ręcznego
+            print(string.format("Client: %-15s | TX: %10d B | RX: %10d B", client, value.tx_bytes, value.rx_bytes))
+        end
     end
 end
 
--- We'll catch any errors in the read function here so that they don't propagate
--- into collectd.
+-- Rejestracja lub uruchomienie testowe
 if collectd then
     collectd.register_read(function()
         local ok, err = pcall(read)
         if not ok then
-            collectd.error("nlbw2collectd: Error in read function: " .. tostring(err))
+            collectd.error("nlbw2collectd: Error: " .. tostring(err))
         end
         return 0
     end)
+else
+    print("--- DEBUG MODE (Manual Execution) ---")
+    read()
 end
