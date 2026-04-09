@@ -34,6 +34,7 @@ jobs:
   release:
     name: Create GitHub Release
     needs: build
+    if: always() && !cancelled() && contains(needs.build.result, 'success')
     runs-on: ubuntu-latest
     permissions:
       contents: write

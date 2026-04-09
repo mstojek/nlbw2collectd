@@ -93,7 +93,7 @@ end
 local function read()
     local output = exec("/usr/sbin/nlbw -c csv -g ip -n")
     if not output or output == "" then return end
-    
+
     local lines = {}
     for line in output:gmatch("[^\r\n]+") do
         table.insert(lines, line)
@@ -112,7 +112,7 @@ local function read()
     local idx_rx_packets = cols["rx_pkts"] or 4
     local idx_tx_bytes = cols["tx_bytes"] or 5
     local idx_tx_packets = cols["tx_pkts"] or 6
-    
+
     local values = {}
 
     for i = 2, #lines do
