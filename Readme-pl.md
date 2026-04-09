@@ -37,11 +37,11 @@ Pakiet automatycznie skonfiguruje statystyki LuCI i zrestartuje wymagane usługi
    opkg install collectd-mod-lua libubus-lua nlbwmon
    ```
 
-2. Skopiuj [nlbw2collectd.lua](package/nlbw2collectd/files/usr/share/collectd-mod-lua/nlbw2collectd.lua) do katalogu `/usr/share/collectd-mod-lua/`.
+2. Skopiuj [nlbw2collectd.lua](nlbw2collectd/src/usr/share/collectd-mod-lua/nlbw2collectd.lua) do katalogu `/usr/share/collectd-mod-lua/`.
 
-3. Skopiuj [nlbwmon.conf](package/nlbw2collectd/files/etc/collectd/conf.d/nlbwmon.conf) do `/etc/collectd/conf.d/`.
+3. Skopiuj [nlbwmon.conf](nlbw2collectd/src/etc/collectd/conf.d/nlbwmon.conf) do `/etc/collectd/conf.d/`.
 
-4. Skopiuj [nlbwmon.js](package/nlbw2collectd/files/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js) do `/www/luci-static/resources/statistics/rrdtool/definitions/`.
+4. Skopiuj [nlbwmon.js](nlbw2collectd/src/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js) do `/www/luci-static/resources/statistics/rrdtool/definitions/`.
 
 5. Skonfiguruj LuCI, aby uwzględniało nowy katalog:
    ```bash

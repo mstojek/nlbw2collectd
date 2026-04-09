@@ -4,7 +4,7 @@ PKG_NAME:=nlbw2collectd
 PKG_VERSION:=0.0.5
 PKG_RELEASE:=1
 PKG_MAINTAINER:=Marek Stojek <mstojek@gmail.com>
-PKG_LICENSE:=MIT
+PKG_LICENSE:=GPL-3.0-or-later
 
 include $(INCLUDE_DIR)/package.mk
 
@@ -21,16 +21,23 @@ define Package/nlbw2collectd/description
   This plugin allows you to export nlbwmon traffic statistics directly to Collectd.
 endef
 
+define Build/Prepare
+	mkdir -p $(PKG_BUILD_DIR)
+	$(CP) ./src/* $(PKG_BUILD_DIR)/
+endef
+
 define Build/Compile
 endef
 
 define Package/nlbw2collectd/install
 	$(INSTALL_DIR) $(1)/usr/share/collectd-mod-lua
-	$(INSTALL_DATA) ./files/usr/share/collectd-mod-lua/nlbw2collectd.lua $(1)/usr/share/collectd-mod-lua/nlbw2collectd.lua
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/usr/share/collectd-mod-lua/nlbw2collectd.lua $(1)/usr/share/collectd-mod-lua/nlbw2collectd.lua
+
 	$(INSTALL_DIR) $(1)/etc/collectd/conf.d
-	$(INSTALL_DATA) ./files/etc/collectd/conf.d/nlbwmon.conf $(1)/etc/collectd/conf.d/nlbwmon.conf
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/etc/collectd/conf.d/nlbwmon.conf $(1)/etc/collectd/conf.d/nlbwmon.conf
+
 	$(INSTALL_DIR) $(1)/www/luci-static/resources/statistics/rrdtool/definitions
-	$(INSTALL_DATA) ./files/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js $(1)/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js
+	$(INSTALL_DATA) $(PKG_BUILD_DIR)/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js $(1)/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js
 endef
 
 define Package/nlbw2collectd/postinst
