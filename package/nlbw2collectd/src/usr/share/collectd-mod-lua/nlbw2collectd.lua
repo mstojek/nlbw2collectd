@@ -1,8 +1,8 @@
 -- Configuration options:
-local HOSTNAME = "" -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
-local PLUGIN = "iptables"
-local PLUGIN_INSTANCE_RX = "mangle-nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX = "mangle-nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
+local HOSTNAME = "Testing" -- leave empty if you track statistics for local system, change when you really know that you want different hostname to be used
+local PLUGIN = "nlbwmon" -- change to "iptables" to have full compliance with iptmon
+local PLUGIN_INSTANCE_RX = "nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
+local PLUGIN_INSTANCE_TX = "nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
 local TYPE_BYTES = "ipt_bytes"
 local TYPE_PACKETS = "ipt_packets"
 local TYPE_INSTANCE_PREFIX_RX = "rx_"
