@@ -43,7 +43,7 @@ jobs:
       contents: write
     steps:
       - name: Download Artifacts
-        uses: actions/download-artifact@v5
+        uses: actions/download-artifact@v6
         with:
           # CRITICAL FIX: Only download our packages, ignoring SDK provenance/logs
           pattern: nlbw2collectd-binaries-*
@@ -59,7 +59,7 @@ jobs:
           ls -R release-assets/
 
       - name: Create Release
-        uses: softprops/action-gh-release@v2
+        uses: ncipollo/release-action@v1
         with:
           files: release-assets/*
         env:
