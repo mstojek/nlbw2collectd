@@ -33,10 +33,10 @@ local function exec(command)
     return data
 end
 
--- Poprawiony parser obsługujący cudzysłowy, przecinki i tabulatory
+-- Improved parser supporting quotes, commas, and tabs
 local function parse_csv_line(line)
     local res = {}
-    -- Wyrażenie regularne wyciągające tekst spomiędzy cudzysłowów lub oddzielony spacjami/tabulatorami
+    -- Regular expression extracting text between quotes or separated by spaces/tabs
     for v in line:gmatch('"?([^"%s,\t]+)"?') do
         table.insert(res, v)
     end
@@ -106,7 +106,7 @@ local function read()
         cols[h:lower()] = i
     end
 
-    -- Dopasowanie kolumn do rzeczywistego wyjścia nlbw
+    -- Matching columns to the actual nlbw output
     local idx_ip = cols["ip"] or 1
     local idx_rx_bytes = cols["rx_bytes"] or 3
     local idx_rx_packets = cols["rx_pkts"] or 4
@@ -134,7 +134,7 @@ local function read()
                 rx_packets = 0
             }
 
-            -- Sumowanie (Received -> TX chart, Transmitted -> RX chart)
+            -- Summation (Received -> TX chart, Transmitted -> RX chart)
             value.tx_bytes   = value.tx_bytes   + received_bytes
             value.tx_packets = value.tx_packets + received_packets
             value.rx_bytes   = value.rx_bytes   + transmitted_bytes
@@ -144,7 +144,7 @@ local function read()
         end
     end
 
-    -- Wysyłanie do collectd lub konsoli
+    -- Sending to collectd or console
     for client, value in pairs(values) do
         if collectd then
             collectd.dispatch_values {
@@ -183,13 +183,13 @@ local function read()
                 values = { value.rx_packets },
             }
         else
-            -- Debug dla uruchomienia ręcznego
+            -- Debug for manual execution
             print(string.format("Client: %-15s | TX: %10d B | RX: %10d B", client, value.tx_bytes, value.rx_bytes))
         end
     end
 end
 
--- Rejestracja lub uruchomienie testowe
+-- Registration or test run
 if collectd then
     collectd.register_read(function()
         local ok, err = pcall(read)

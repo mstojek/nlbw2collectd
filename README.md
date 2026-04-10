@@ -32,7 +32,29 @@ You can find pre-built architecture-independent (`noarch`) packages in the [Rele
 
 The package will automatically configure LuCI statistics and restart all necessary services.
 
-## Option 2: Manual Installation
+## Option 2: Compiling from Source (Using OpenWrt Feed)
+If you prefer to build the package yourself using the OpenWrt SDK or Buildroot:
+
+1. Add the feed to your `feeds.conf` or `feeds.conf.default`:
+   ```text
+   src-git nlbwmon_stats https://github.com/mstojek/nlbw2collectd.git
+   ```
+
+2. Update and install the feed:
+   ```bash
+   ./scripts/feeds update nlbwmon_stats
+   ./scripts/feeds install nlbw2collectd
+   ```
+
+3. Select the package in `make menuconfig`:
+   `Utilities` -> `nlbw2collectd`
+
+4. Compile the package:
+   ```bash
+   make package/nlbw2collectd/compile V=s
+   ```
+
+## Option 3: Manual Installation
 1. Make sure that you have the dependencies installed:
    ```bash
    opkg update
@@ -62,16 +84,19 @@ The package will automatically configure LuCI statistics and restart all necessa
 7. Login to Luci and go to Statistics -> Graphs -> nlbwmon.
 
 # Iptmon replacement
-Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this topu need to change two lines in the file nlbw2collectd.lua
-In order to do this find lines below:
-```
-local PLUGIN_INSTANCE_RX = "nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX = "nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
+Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this you need to change three lines in the file `/usr/share/collectd-mod-lua/nlbw2collectd.lua`:
+
+Find the lines below:
+```lua
+local PLUGIN = "nlbwmon"
+local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
+local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
 ```
 and change them to:
-```
-local PLUGIN_INSTANCE_RX="mangle-iptmon_rx" -- we have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptmon
+```lua
+local PLUGIN = "iptables" -- we have full compliance with iptmon
+local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- we have full compliance with iptmon
+local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- we have full compliance with iptmon
 ```
 
 Make sure that Iptmon is not installed since this plugin and Iptmon can not coexist.

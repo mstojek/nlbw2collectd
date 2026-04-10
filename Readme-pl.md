@@ -30,7 +30,29 @@ Gotowe pakiety niezależne od architektury (`noarch`) znajdziesz w sekcji [Relea
 
 Pakiet automatycznie skonfiguruje statystyki LuCI i zrestartuje wymagane usługi.
 
-## Opcja 2: Instalacja ręczna
+## Opcja 2: Kompilacja ze źródeł (Używając OpenWrt Feed)
+Jeśli wolisz samodzielnie zbudować pakiet przy użyciu OpenWrt SDK lub Buildroot:
+
+1. Dodaj feed do swojego pliku `feeds.conf` lub `feeds.conf.default`:
+   ```text
+   src-git nlbwmon_stats https://github.com/mstojek/nlbw2collectd.git
+   ```
+
+2. Zaktualizuj i zainstaluj feed:
+   ```bash
+   ./scripts/feeds update nlbwmon_stats
+   ./scripts/feeds install nlbw2collectd
+   ```
+
+3. Wybierz pakiet w `make menuconfig`:
+   `Utilities` -> `nlbw2collectd`
+
+4. Skompiluj pakiet:
+   ```bash
+   make package/nlbw2collectd/compile V=s
+   ```
+
+## Opcja 3: Instalacja ręczna
 1. Upewnij się, że masz zainstalowane zależności:
    ```bash
    opkg update
@@ -60,16 +82,19 @@ Pakiet automatycznie skonfiguruje statystyki LuCI i zrestartuje wymagane usługi
 7. Zaloguj się do Luci i sprawdź Statistics -> Graphs -> nlbwmon.
 
 # Zamiennik dla Iptmon 
-Od wydania Openwrt 22.03  [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze względu na zamianę iptables na nftables. Ten plugin pozwala na otrzymanie takiego samego zestawu statystyk jak Iptmon. Aby to sie stało należy zmienic dwie linie w pliku nlbw2collectd.lua
-Zanjdujemy linijki poniżej:
-```
-local PLUGIN_INSTANCE_RX = "nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX = "nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
+Od wydania Openwrt 22.03  [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze względu na zamianę iptables na nftables. Ten plugin pozwala na otrzymanie takiego samego zestawu statystyk jak Iptmon. Aby to sie stało należy zmienić trzy linie w pliku `/usr/share/collectd-mod-lua/nlbw2collectd.lua`:
+
+Znajdujemy linijki poniżej:
+```lua
+local PLUGIN = "nlbwmon"
+local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
+local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
 ```
 i zamieniamy je na:
-```
-local PLUGIN_INSTANCE_RX="mangle-iptmon_rx" -- we have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptmon
+```lua
+local PLUGIN = "iptables" -- pelna zgodnosc z iptmon
+local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- pelna zgodnosc z iptmon
+local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- pelna zgodnosc z iptmon
 ```
 
 Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon i ten plugin nie mogą być zainstalowane jednoczesnie.
