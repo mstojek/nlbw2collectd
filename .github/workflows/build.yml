@@ -1,7 +1,4 @@
-name: Build OpenWrt Package (noarch)
-
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+name: Build OpenWrt Package
 
 on:
   push:
@@ -10,14 +7,15 @@ on:
 
 jobs:
   build:
-    name: Build ${{ matrix.arch }}
+    name: Build for ${{ matrix.arch }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         arch:
-          - x86-64-24.10.0
-          - x86-64-25.12.2
+          # We build for both a stable and a modern version
+          - x86-64-23.05.3  # Produces .ipk
+          - x86-64-25.12.2  # Produces .apk
     steps:
       - name: Checkout Source
         uses: actions/checkout@v5
@@ -32,13 +30,14 @@ jobs:
       - name: Upload Artifacts
         uses: actions/upload-artifact@v5
         with:
-          name: nlbw2collectd-${{ matrix.arch }}
+          # Use a clear name prefix for our artifacts
+          name: nlbw2collectd-binaries-${{ matrix.arch }}
           path: bin/packages/**/nlbw2collectd*
 
   release:
     name: Create GitHub Release
     needs: build
-    if: always() && !cancelled() && contains(needs.build.result, 'success')
+    if: success()
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -46,14 +45,17 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v5
         with:
+          # CRITICAL FIX: Only download our packages, ignoring SDK provenance/logs
+          pattern: nlbw2collectd-binaries-*
           path: artifacts
           merge-multiple: true
 
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
-          find artifacts -name "*.ipk" -exec cp {} release-assets/ \;
-          find artifacts -name "*.apk" -exec cp {} release-assets/ \;
+          # Flat copy of all compiled packages
+          find artifacts -name "nlbw2collectd*.ipk" -exec cp {} release-assets/ \;
+          find artifacts -name "nlbw2collectd*.apk" -exec cp {} release-assets/ \;
           ls -R release-assets/
 
       - name: Create Release
