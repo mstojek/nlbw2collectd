@@ -91,12 +91,16 @@ Find the lines below:
 local PLUGIN = "nlbwmon"
 local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
 local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
+local TYPE_INSTANCE_PREFIX_RX = ""
+local TYPE_INSTANCE_PREFIX_TX = ""
 ```
 and change them to:
 ```lua
 local PLUGIN = "iptables" -- we have full compliance with iptmon
 local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- we have full compliance with iptmon
 local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- we have full compliance with iptmon
+local TYPE_INSTANCE_PREFIX_RX = "rx" -- we have full compliance with iptmon
+local TYPE_INSTANCE_PREFIX_TX = "tx" -- we have full compliance with iptmon
 ```
 
 Make sure that Iptmon is not installed since this plugin and Iptmon can not coexist.
