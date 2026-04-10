@@ -6,7 +6,7 @@ Przez kilka lat używałem programu [Iptmon](https://github.com/oofnikj/iptmon) 
 
 # Zależności
 Dla poprawnego działania pluginu należy mieć zainstalowane Luci i luci-app-statistics.
-Wymaganymi bibliotekami (instalowanymi automatycznie z pakietem) są `collectd-mod-lua`, `libubus-lua` oraz `nlbwmon`.
+Wymaganymi bibliotekami (instalowanymi automatycznie z pakietem) są `collectd`, `collectd-mod-lua`, `libubus-lua`, `nlbwmon` oraz `luci-app-statistics`.
 
 # Instrukcja instalacji
 
@@ -41,7 +41,7 @@ Jeśli wolisz samodzielnie zbudować pakiet przy użyciu OpenWrt SDK lub Buildro
 2. Zaktualizuj i zainstaluj feed:
    ```bash
    ./scripts/feeds update nlbwmon_stats
-   ./scripts/feeds install nlbw2collectd
+   ./scripts/feeds install -p nlbwmon_stats nlbw2collectd
    ```
 
 3. Wybierz pakiet w `make menuconfig`:
@@ -56,7 +56,7 @@ Jeśli wolisz samodzielnie zbudować pakiet przy użyciu OpenWrt SDK lub Buildro
 1. Upewnij się, że masz zainstalowane zależności:
    ```bash
    opkg update
-   opkg install collectd-mod-lua libubus-lua nlbwmon
+   opkg install collectd collectd-mod-lua libubus-lua nlbwmon luci-app-statistics
    ```
 
 2. Skopiuj [nlbw2collectd.lua](nlbw2collectd/src/usr/share/collectd-mod-lua/nlbw2collectd.lua) do katalogu `/usr/share/collectd-mod-lua/`.

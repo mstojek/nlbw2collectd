@@ -8,7 +8,7 @@ I have been using [Iptmon](https://github.com/oofnikj/iptmon) tool to get very n
 
 # Dependencies
 This plugin assumes that you have Luci and luci-app-statistics installed.
-Required libraries (automatically installed with the package) are `collectd-mod-lua`, `libubus-lua`, and `nlbwmon`.
+Required libraries (automatically installed with the package) are `collectd`, `collectd-mod-lua`, `libubus-lua`, `nlbwmon`, and `luci-app-statistics`.
 
 # Installation instructions
 
@@ -43,7 +43,7 @@ If you prefer to build the package yourself using the OpenWrt SDK or Buildroot:
 2. Update and install the feed:
    ```bash
    ./scripts/feeds update nlbwmon_stats
-   ./scripts/feeds install nlbw2collectd
+   ./scripts/feeds install -p nlbwmon_stats nlbw2collectd
    ```
 
 3. Select the package in `make menuconfig`:
@@ -58,7 +58,7 @@ If you prefer to build the package yourself using the OpenWrt SDK or Buildroot:
 1. Make sure that you have the dependencies installed:
    ```bash
    opkg update
-   opkg install collectd-mod-lua libubus-lua nlbwmon
+   opkg install collectd collectd-mod-lua libubus-lua nlbwmon luci-app-statistics
    ```
 
 2. Copy [nlbw2collectd.lua](nlbw2collectd/src/usr/share/collectd-mod-lua/nlbw2collectd.lua) to `/usr/share/collectd-mod-lua/` directory.

@@ -12,7 +12,7 @@ define Package/nlbw2collectd
   SECTION:=utils
   CATEGORY:=Utilities
   TITLE:=Nlbwmon to Collectd traffic statistics exporter
-  DEPENDS:=+collectd-mod-lua +libubus-lua +nlbwmon
+  DEPENDS:=+collectd +collectd-mod-lua +libubus-lua +nlbwmon +luci-app-statistics
   URL:=https://github.com/mstojek/nlbw2collectd
   PKGARCH:=all
 endef
