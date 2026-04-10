@@ -2,7 +2,7 @@
 'require baseclass';
 
 return baseclass.extend({
-	title: _('nlbwmon'),
+	title: _('Nlbwmon'),
 
 	rrdargs: function(graph, host, plugin, plugin_instance, dtype) {
 		return [
