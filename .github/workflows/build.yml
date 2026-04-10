@@ -1,4 +1,40 @@
-release:
+name: Build OpenWrt Package
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build for ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        arch:
+          # Build for both stable (ipk) and modern (apk) OpenWrt releases
+          - x86-64-23.05.3  # Produces legacy .ipk (opkg)
+          - x86-64-25.12.2  # Produces new .apk (apk-tools)
+    steps:
+      - name: Checkout Source
+        uses: actions/checkout@v5
+
+      - name: Build Package via OpenWrt SDK
+        uses: openwrt/gh-action-sdk@v7
+        env:
+          ARCH: ${{ matrix.arch }}
+          PACKAGES: nlbw2collectd
+          FEED_DIR: ${{ github.workspace }}
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v5
+        with:
+          # Distinct name per architecture to avoid merging conflicts during the build job
+          name: nlbw2collectd-binaries-${{ matrix.arch }}
+          path: bin/packages/**/nlbw2collectd*
+
+  release:
     name: Create GitHub Release
     needs: build
     if: success()
@@ -6,30 +42,31 @@ release:
     permissions:
       contents: write
     steps:
-      - name: Download Artifacts
+      - name: Download Filtered Artifacts
         uses: actions/download-artifact@v6
         with:
-          # Download only our package binaries
+          # Download only our binary artifacts, ignoring SDK provenance/metadata
           pattern: nlbw2collectd-binaries-*
           path: artifacts
           merge-multiple: true
 
-      - name: Prepare Assets
+      - name: Prepare Release Assets
         run: |
           mkdir -p release-assets
+          # Collect all compiled package formats into a flat directory
           find artifacts -name "nlbw2collectd*.ipk" -exec cp {} release-assets/ \;
           find artifacts -name "nlbw2collectd*.apk" -exec cp {} release-assets/ \;
           ls -R release-assets/
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          # List of files to upload
+          # List of files to be attached to the release
           artifacts: "release-assets/*"
-          # Use the tag name as the release tag and title
+          # Set release tag and title based on the pushed tag
           tag: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
-          # Recommended: Allow updating the release if the tag is re-pushed
+          # Allow updating the release if you re-push the same tag
           allowUpdates: true
-          # Authentication
+          # Authentication token
           token: ${{ secrets.GITHUB_TOKEN }}
