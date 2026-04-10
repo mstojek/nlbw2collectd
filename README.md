@@ -42,8 +42,8 @@ If you prefer to build the package yourself using the OpenWrt SDK or Buildroot:
 
 2. Update and install the feed:
    ```bash
-   ./scripts/feeds update nlbwmon_stats
-   ./scripts/feeds install -p nlbwmon_stats nlbw2collectd
+   ./scripts/feeds update nlbw2collectd
+   ./scripts/feeds install -p nlbw2collectd 
    ```
 
 3. Select the package in `make menuconfig`:
