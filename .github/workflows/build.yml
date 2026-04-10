@@ -1,40 +1,4 @@
-name: Build OpenWrt Package
-
-on:
-  push:
-    tags:
-      - 'v*'
-
-jobs:
-  build:
-    name: Build for ${{ matrix.arch }}
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        arch:
-          # We build for both a stable and a modern version
-          - x86-64-23.05.3  # Produces .ipk
-          - x86-64-25.12.2  # Produces .apk
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v5
-
-      - name: Build Package
-        uses: openwrt/gh-action-sdk@v7
-        env:
-          ARCH: ${{ matrix.arch }}
-          PACKAGES: nlbw2collectd
-          FEED_DIR: ${{ github.workspace }}
-
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v5
-        with:
-          # Use a clear name prefix for our artifacts
-          name: nlbw2collectd-binaries-${{ matrix.arch }}
-          path: bin/packages/**/nlbw2collectd*
-
-  release:
+release:
     name: Create GitHub Release
     needs: build
     if: success()
@@ -45,7 +9,7 @@ jobs:
       - name: Download Artifacts
         uses: actions/download-artifact@v6
         with:
-          # CRITICAL FIX: Only download our packages, ignoring SDK provenance/logs
+          # Download only our package binaries
           pattern: nlbw2collectd-binaries-*
           path: artifacts
           merge-multiple: true
@@ -53,7 +17,6 @@ jobs:
       - name: Prepare Assets
         run: |
           mkdir -p release-assets
-          # Flat copy of all compiled packages
           find artifacts -name "nlbw2collectd*.ipk" -exec cp {} release-assets/ \;
           find artifacts -name "nlbw2collectd*.apk" -exec cp {} release-assets/ \;
           ls -R release-assets/
@@ -61,6 +24,12 @@ jobs:
       - name: Create Release
         uses: ncipollo/release-action@v1
         with:
-          files: release-assets/*
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # List of files to upload
+          artifacts: "release-assets/*"
+          # Use the tag name as the release tag and title
+          tag: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          # Recommended: Allow updating the release if the tag is re-pushed
+          allowUpdates: true
+          # Authentication
+          token: ${{ secrets.GITHUB_TOKEN }}
