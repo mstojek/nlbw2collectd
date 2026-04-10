@@ -40,8 +40,8 @@ Jeśli wolisz samodzielnie zbudować pakiet przy użyciu OpenWrt SDK lub Buildro
 
 2. Zaktualizuj i zainstaluj feed:
    ```bash
-   ./scripts/feeds update nlbwmon_stats
-   ./scripts/feeds install -p nlbwmon_stats nlbw2collectd
+   ./scripts/feeds update nlbw2collectd
+   ./scripts/feeds install -p nlbw2collectd 
    ```
 
 3. Wybierz pakiet w `make menuconfig`:
@@ -89,12 +89,16 @@ Znajdujemy linijki poniżej:
 local PLUGIN = "nlbwmon"
 local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
 local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
+local TYPE_INSTANCE_PREFIX_RX = ""
+local TYPE_INSTANCE_PREFIX_TX = ""
 ```
 i zamieniamy je na:
 ```lua
 local PLUGIN = "iptables" -- pelna zgodnosc z iptmon
 local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- pelna zgodnosc z iptmon
 local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- pelna zgodnosc z iptmon
+local TYPE_INSTANCE_PREFIX_RX = "rx" -- pelna zgodnosc z iptmon
+local TYPE_INSTANCE_PREFIX_TX = "tx" -- pelna zgodnosc z iptmon
 ```
 
 Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon i ten plugin nie mogą być zainstalowane jednoczesnie.
