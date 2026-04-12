@@ -231,7 +231,7 @@ local function read()
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_TX, type = TYPE_PACKETS, type_instance = TYPE_INSTANCE_PREFIX_TX .. client, values = { v.tx_p } }
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_RX, type = TYPE_PACKETS, type_instance = TYPE_INSTANCE_PREFIX_RX .. client, values = { v.rx_p } }
         else
-            print(string.format("Client: %-15s | TX: %10d B | RX: %10d B", client, v.tx_b, v.rx_b))
+            print(string.format("Client: %-15s | TX: %10.0f B | RX: %10.0f B", client, v.tx_b, v.rx_b))
         end
     end
 end
