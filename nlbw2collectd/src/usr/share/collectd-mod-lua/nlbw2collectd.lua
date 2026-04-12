@@ -127,20 +127,63 @@ end
 
 local ip_to_host = {}
 
+-- Scans system files and UBUS to resolve IPs to Hostnames with priority logic
 local function refresh_hosts()
-    if not ubus then return end
-    local hosts = ubus:call("luci-rpc", "getHostHints", {}) or {}
-
-    for mac, data in pairs(hosts) do
-        local name = data.name
-        if name then
-            for _, ipv4 in ipairs(data.ipaddrs or {}) do
-                ip_to_host[ipv4] = name
-            end
-            for _, ipv6 in ipairs(data.ip6addrs or {}) do
-                ip_to_host[ipv6] = name
+    -- 1. Dynamic DHCP leases (Lowest Priority)
+    local f_dynamic = io.open("/tmp/dhcp.leases", "r")
+    if f_dynamic then
+        for line in f_dynamic:lines() do
+            local _, _, ip, name = line:match("^(%d+)%s+(%S+)%s+(%S+)%s+(%S+)")
+            if ip and name and name ~= "*" then
+                ip_to_host[ip] = name
             end
         end
+        f_dynamic:close()
+    end
+
+    -- 2. Active ARP entries from UBUS (Important for IPv6 resolution)
+    if ubus then
+        local hosts = ubus:call("luci-rpc", "getHostHints", {}) or {}
+        for mac, data in pairs(hosts) do
+            local name = data.name
+            if name then
+                for _, ipv4 in ipairs(data.ipaddrs or {}) do ip_to_host[ipv4] = name end
+                for _, ipv6 in ipairs(data.ip6addrs or {}) do ip_to_host[ipv6] = name end
+            end
+        end
+    end
+
+    -- 3. Static DHCP leases from LuCI (High Priority - User defined)
+    local f_static = io.open("/etc/config/dhcp", "r")
+    if f_static then
+        local current_name, current_ip
+        for line in f_static:lines() do
+            if line:match("^%s*config host") then
+                if current_name and current_ip then ip_to_host[current_ip] = current_name end
+                current_name, current_ip = nil, nil
+            else
+                local n = line:match("option%s+name%s+['\"]?([^%s'\"]+)['\"]?")
+                if n then current_name = n end
+                local i = line:match("option%s+ip%s+['\"]?([0-9%.]+)['\"]?")
+                if i then current_ip = i end
+            end
+        end
+        if current_name and current_ip then ip_to_host[current_ip] = current_name end
+        f_static:close()
+    end
+
+    -- 4. /etc/hosts file (Highest Priority - OS level)
+    local f_hosts = io.open("/etc/hosts", "r")
+    if f_hosts then
+        for line in f_hosts:lines() do
+            -- Extract IP and the first name after space/tab, ignoring comments (#)
+            local ip, name = line:match("^%s*([0-9a-fA-F:%.]+)%s+([^%s#]+)")
+            -- Ignore localhost loopbacks, we only care about real devices
+            if ip and name and ip ~= "127.0.0.1" and ip ~= "::1" then
+                ip_to_host[ip] = name
+            end
+        end
+        f_hosts:close()
     end
 end
 
@@ -151,7 +194,9 @@ local function get_hostname(ip)
         refresh_hosts()
         hostname = ip_to_host[ip]
         if not hostname then
-            -- Fallback to IP to avoid blocking the collectd daemon
+            -- Cache the failure: if the IP has no name system-wide, store the IP as the name.
+            -- This prevents the script from re-parsing all files for the same unknown IP in every cycle.
+            ip_to_host[ip] = ip
             return ip
         end
     end
@@ -159,7 +204,7 @@ local function get_hostname(ip)
     if hostname:match("^[0-9.]+$") or hostname:match(":") then
         return hostname
     end
-    -- Extract only the hostname without the domain
+    -- Return just the base hostname (e.g., "camera" instead of "camera.lan")
     return hostname:match("^([^.]+)") or hostname
 end
 
@@ -210,7 +255,7 @@ local function read()
                     rx_b = 0, rx_p = 0
                 }
 
-                -- Direct 64-bit summation
+                -- Direct 64-bit summation (Collectd is expected to be patched for 64-bit)
                 v.tx_b = v.tx_b + rx_b
                 v.tx_p = v.tx_p + rx_p
                 v.rx_b = v.rx_b + tx_b
@@ -231,6 +276,7 @@ local function read()
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_TX, type = TYPE_PACKETS, type_instance = TYPE_INSTANCE_PREFIX_TX .. client, values = { v.tx_p } }
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_RX, type = TYPE_PACKETS, type_instance = TYPE_INSTANCE_PREFIX_RX .. client, values = { v.rx_p } }
         else
+            -- Print using %10.0f to avoid 'bad argument' float/integer errors in Lua 5.3+
             print(string.format("Client: %-15s | TX: %10.0f B | RX: %10.0f B", client, v.tx_b, v.rx_b))
         end
     end
