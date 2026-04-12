@@ -13,8 +13,9 @@ local io = require "io"
 local has_ubus, ubus_mod = pcall(require, "ubus")
 local ubus = has_ubus and ubus_mod.connect()
 
-local pairs, ipairs, tonumber = pairs, ipairs, tonumber
+local pairs, ipairs, tonumber, type = pairs, ipairs, tonumber, type
 
+-- Helper function to execute shell commands
 local function exec(command)
     local pp, err = io.popen(command)
     if not pp then return nil end
@@ -23,18 +24,106 @@ local function exec(command)
     return data
 end
 
--- Ultra-robust pure Lua CSV parser
--- Matches sequences of characters separated by commas OR whitespace.
--- Safely strips surrounding quotes.
-local function parse_line(line)
-    local res = {}
-    for v in line:gmatch("[^%s,]+") do
-        -- Strip quotes if present
-        v = v:gsub('^"?(.-)"?$', '%1')
-        table.insert(res, v)
+-- ============================================================================
+-- Embedded Pure Lua JSON Parser (Decode Only)
+-- Zero dependencies required. Highly compact and optimized for nlbwmon output.
+-- ============================================================================
+local function json_decode(str)
+    local idx = 1
+    local function next_char()
+        while idx <= #str do
+            local c = str:sub(idx, idx)
+            if not c:match("[%s\r\n\t]") then return c end
+            idx = idx + 1
+        end
+        return nil
     end
-    return res
+
+    local parse_value, parse_object, parse_array, parse_string, parse_number
+
+    parse_string = function()
+        local res = ""
+        idx = idx + 1 -- skip '"'
+        while idx <= #str do
+            local c = str:sub(idx, idx)
+            if c == '"' then
+                idx = idx + 1
+                return res
+            end
+            if c == '\\' then
+                idx = idx + 1
+                c = str:sub(idx, idx)
+                if c == 'n' then res = res .. '\n'
+                elseif c == 't' then res = res .. '\t'
+                elseif c == 'r' then res = res .. '\r'
+                elseif c == '"' then res = res .. '"'
+                elseif c == '\\' then res = res .. '\\'
+                else res = res .. c end
+            else
+                res = res .. c
+            end
+            idx = idx + 1
+        end
+        error("Unterminated JSON string")
+    end
+
+    parse_number = function()
+        local start = idx
+        while idx <= #str do
+            local c = str:sub(idx, idx)
+            if not c:match("[0-9%.%-eE%+]") then break end
+            idx = idx + 1
+        end
+        local num = tonumber(str:sub(start, idx - 1))
+        if not num then error("Invalid JSON number") end
+        return num
+    end
+
+    parse_object = function()
+        local res = {}
+        idx = idx + 1 -- skip '{'
+        while true do
+            local c = next_char()
+            if c == '}' then idx = idx + 1; break end
+            if c == ',' then idx = idx + 1; c = next_char() end
+            if c ~= '"' then error("Expected string key in JSON object") end
+            local key = parse_string()
+            c = next_char()
+            if c ~= ':' then error("Expected colon in JSON object") end
+            idx = idx + 1 -- skip ':'
+            res[key] = parse_value()
+        end
+        return res
+    end
+
+    parse_array = function()
+        local res = {}
+        idx = idx + 1 -- skip '['
+        while true do
+            local c = next_char()
+            if c == ']' then idx = idx + 1; break end
+            if c == ',' then idx = idx + 1; c = next_char() end
+            if c == ']' then idx = idx + 1; break end
+            table.insert(res, parse_value())
+        end
+        return res
+    end
+
+    parse_value = function()
+        local c = next_char()
+        if not c then return nil end
+        if c == '{' then return parse_object() end
+        if c == '[' then return parse_array() end
+        if c == '"' then return parse_string() end
+        if c == 't' then idx = idx + 4; return true end
+        if c == 'f' then idx = idx + 5; return false end
+        if c == 'n' then idx = idx + 4; return nil end
+        return parse_number()
+    end
+
+    return parse_value()
 end
+-- ============================================================================
 
 local ip_to_host = {}
 
@@ -62,8 +151,7 @@ local function get_hostname(ip)
         refresh_hosts()
         hostname = ip_to_host[ip]
         if not hostname then
-            -- We abandoned nslookup to avoid blocking the collectd daemon.
-            -- We simply return the IP address as a fallback.
+            -- Fallback to IP to avoid blocking the collectd daemon
             return ip
         end
     end
@@ -76,19 +164,23 @@ local function get_hostname(ip)
 end
 
 local function read()
-    local output = exec("/usr/sbin/nlbw -c csv -g ip -n")
+    -- Request JSON format from nlbwmon
+    local output = exec("/usr/sbin/nlbw -c json -g ip")
     if not output or output == "" then return end
 
-    local lines = {}
-    for line in output:gmatch("[^\r\n]+") do
-        table.insert(lines, line)
+    -- Safely decode JSON
+    local ok, pjson = pcall(json_decode, output)
+    if not ok or type(pjson) ~= "table" or not pjson.data then
+        if collectd then collectd.log_error("nlbw2collectd: Failed to parse JSON output") end
+        return
     end
-    if #lines < 2 then return end
 
-    local header = parse_line(lines[1])
+    -- Dynamically map column indices based on the JSON "columns" array
     local cols = {}
-    for i, h in ipairs(header) do
-        cols[h:lower()] = i
+    if pjson.columns then
+        for i, h in ipairs(pjson.columns) do
+            cols[h:lower()] = i
+        end
     end
 
     local idx_ip = cols["ip"] or 1
@@ -99,19 +191,17 @@ local function read()
 
     local values = {}
 
-    for i = 2, #lines do
-        local row = parse_line(lines[i])
+    -- Process JSON data array
+    for _, row in ipairs(pjson.data) do
         local ip = row[idx_ip]
 
         if ip and ip ~= "" then
-            -- Convert to numbers. If nlbwmon returns an error or empty field, the result will be nil.
             local rx_b = tonumber(row[idx_rx_bytes])
             local rx_p = tonumber(row[idx_rx_packets])
             local tx_b = tonumber(row[idx_tx_bytes])
             local tx_p = tonumber(row[idx_tx_packets])
 
-            -- Process only when all 4 values are valid numbers.
-            -- Otherwise, we skip the device (Collectd will record NaN, avoiding artificial spikes).
+            -- Skip device if any required field is missing/corrupted to prevent data spikes
             if rx_b and rx_p and tx_b and tx_p then
                 local client = get_hostname(ip)
 
@@ -131,6 +221,7 @@ local function read()
         end
     end
 
+    -- Dispatch to Collectd
     for client, v in pairs(values) do
         if collectd then
             local c_host = HOSTNAME == "" and collectd.hostname() or HOSTNAME
