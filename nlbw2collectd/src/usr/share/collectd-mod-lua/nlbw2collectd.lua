@@ -1,5 +1,5 @@
 -- Configuration options:
-local HOSTNAME = "Testing" -- leave empty if you track statistics for local system
+local HOSTNAME = "" -- leave empty if you track statistics for local system
 local PLUGIN = "nlbwmon"
 local PLUGIN_INSTANCE_RX = "uplink"
 local PLUGIN_INSTANCE_TX = "downlink"
