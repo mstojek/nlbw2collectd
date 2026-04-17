@@ -269,7 +269,7 @@ local function read()
     -- Dispatch to Collectd
     for client, v in pairs(values) do
         if collectd then
-            local c_host = HOSTNAME == "" and collectd.hostname() or HOSTNAME
+            local c_host = (HOSTNAME ~= "") and HOSTNAME or nil
 
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_TX, type = TYPE_BYTES, type_instance = TYPE_INSTANCE_PREFIX_TX .. client, values = { v.tx_b } }
             collectd.dispatch_values { host = c_host, plugin = PLUGIN, plugin_instance = PLUGIN_INSTANCE_RX, type = TYPE_BYTES, type_instance = TYPE_INSTANCE_PREFIX_RX .. client, values = { v.rx_b } }
