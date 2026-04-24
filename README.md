@@ -7,55 +7,100 @@ This collectd lua plugin allows you to put [Nlbwmon](https://github.com/jow-/nlb
 I have been using [Iptmon](https://github.com/oofnikj/iptmon) tool to get very nice statistics of per host traffic on my Openwrt router. Unfortunatelly starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to replacement of iptables with nftables. When looking for alternatives I was not able to find anything what was close to Iptmon and working on latest Openwrt releases. I found [Nlbwmon](https://github.com/jow-/nlbwmon) to be very nice tool but what I was missing was more detailed per hour statistics with nice charts.
 
 # Dependencies
-This plugin assumes that you have Luci and luci-app-statistics installed. This plugin uses the `luci.jsonc` and `luci.ip` lua libraries that should be bundled with Luci, if that is not the case you need to install this (details below).
-Another required library is collectd-mod-lua.
+This plugin assumes that you have Luci and luci-app-statistics installed.
+Required libraries (automatically installed with the package) are `collectd`, `collectd-mod-lua`, `libubus-lua`, `nlbwmon`, and `luci-app-statistics`.
 
-# Installation instructions.
-1. Make sure that you have `collectd-mod-lua` installed on you openwrt router if not execute:
-   ```
+# Installation instructions
+
+## Option 1: Automatic installation (Recommended)
+You can find pre-built architecture-independent (`noarch`) packages in the [Releases](https://github.com/mstojek/nlbw2collectd/releases) section.
+
+### For OpenWrt 24.10 and earlier (.ipk)
+1. Download the latest `.ipk` file to your router.
+2. Install it using `opkg`:
+   ```bash
    opkg update
-   opkg install collectd-mod-lua
+   opkg install nlbw2collectd_*.ipk
    ```
 
-2. Make sure that `luci-lib-jsonc` and `luci-lib-ip` are installed:
-   ```console
-   # opkg list-installed | grep -E 'luci-lib-jsonc|luci-lib-ip|libubus-lua'
-   [...]
-   luci-lib-ip - 25.163.46283~ec8edb4
-   luci-lib-jsonc - 25.163.46283~ec8edb4
-   libubus-lua - xx.yy.zzzz-zzzzz
-   ```
-   If it is not installed install this with:
-   ```console
-   # opkg install luci-lib-jsonc luci-lib-ip libubus-lua
+### For OpenWrt 25.12 and later (.apk)
+1. Download the latest `.apk` file to your router.
+2. Install it using `apk`:
+   ```bash
+   apk add --allow-untrusted nlbw2collectd_*.apk
    ```
 
-3. Copy [lua.conf](lua.conf) to `collectd config` directory
-   ```console
-   # cp lua.conf /etc/collectd/conf.d
+The package will automatically configure LuCI statistics and restart all necessary services.
+
+## Option 2: Compiling from Source (Using OpenWrt Feed)
+If you prefer to build the package yourself using the OpenWrt SDK or Buildroot:
+
+1. Add the feed to your `feeds.conf` or `feeds.conf.default`:
+   ```text
+   src-git nlbwmon_stats https://github.com/mstojek/nlbw2collectd.git
    ```
 
-4. Copy [nlbw2collectd.lua](nlbw2collectd.lua) to `/usr/share/collectd-mod-lua/` directory
-   ```console
-   # cp nlbw2collectd.lua /usr/share/collectd-mod-lua/
+2. Update and install the feed:
+   ```bash
+   ./scripts/feeds update nlbw2collectd
+   ./scripts/feeds install -p nlbw2collectd 
    ```
-5. Restart collectd
-   ```console
-   # /etc/init.d/collectd  restart
+
+3. Select the package in `make menuconfig`:
+   `Utilities` -> `nlbw2collectd`
+
+4. Compile the package:
+   ```bash
+   make package/nlbw2collectd/compile V=s
    ```
-6. Login to Luci and go to Statistics->Graphs->Firewall. After about minute you should see your statistics.
+
+## Option 3: Manual Installation
+1. Make sure that you have the dependencies installed:
+   ```bash
+   opkg update
+   opkg install collectd collectd-mod-lua libubus-lua nlbwmon luci-app-statistics
+   ```
+
+2. Copy [nlbw2collectd.lua](nlbw2collectd/src/usr/share/collectd-mod-lua/nlbw2collectd.lua) to `/usr/share/collectd-mod-lua/` directory.
+
+3. Copy [nlbwmon.conf](nlbw2collectd/src/etc/collectd/conf.d/nlbwmon.conf) to `/etc/collectd/conf.d/`.
+
+4. Copy [nlbwmon.js](nlbw2collectd/src/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js) to `/www/luci-static/resources/statistics/rrdtool/definitions/`.
+
+5. Configure LuCI to include the new directory:
+   ```bash
+   uci set luci_statistics.collectd.Include='/etc/collectd/conf.d'
+   uci commit luci_statistics
+   ```
+
+6. Clear LuCI cache and restart services:
+   ```bash
+   rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
+   /etc/init.d/luci_statistics restart
+   /etc/init.d/collectd restart
+   /etc/init.d/rpcd restart
+   ```
+
+7. Login to Luci and go to Statistics -> Graphs -> nlbwmon.
 
 # Iptmon replacement
-Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this topu need to change two lines in the file nlbw2collectd.lua
-In order to do this find lines below:
-```
-local PLUGIN_INSTANCE_RX="mangle-nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
+Starting from Openwrt 22.03 release [Iptmon](https://github.com/oofnikj/iptmon) stopped to work due to rpelacements of iptables with nftables. This plugin allows you to get the same set of statistics as Iptmon. To do this you need to change three lines in the file `/usr/share/collectd-mod-lua/nlbw2collectd.lua`:
+
+Find the lines below:
+```lua
+local PLUGIN = "nlbwmon"
+local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
+local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
+local TYPE_INSTANCE_PREFIX_RX = ""
+local TYPE_INSTANCE_PREFIX_TX = ""
 ```
 and change them to:
-```
-local PLUGIN_INSTANCE_RX="mangle-iptmon_rx" -- we have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptmon
+```lua
+local PLUGIN = "iptables" -- we have full compliance with iptmon
+local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- we have full compliance with iptmon
+local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- we have full compliance with iptmon
+local TYPE_INSTANCE_PREFIX_RX = "rx" -- we have full compliance with iptmon
+local TYPE_INSTANCE_PREFIX_TX = "tx" -- we have full compliance with iptmon
 ```
 
 Make sure that Iptmon is not installed since this plugin and Iptmon can not coexist.

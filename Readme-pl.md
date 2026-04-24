@@ -5,56 +5,100 @@ Nlbw2collectd jest pluginem Lua do Collectd który pozwala wrzucić statystyki [
 Przez kilka lat używałem programu [Iptmon](https://github.com/oofnikj/iptmon) do analizy ruchu (per host) w mojej sieci. Niestety od wydania Openwrt 22.03 [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze wzgladu na zamiane Iptables na Nftables. Okazało sie jednak ze nie ma żadnej dobrej alternatywy dla [Iptmon](https://github.com/oofnikj/iptmon), dlatego wpadłem na pomysł eksportowania danych z [Nlbwmon](https://github.com/jow-/nlbwmon) do Collectd.
 
 # Zależności
-Dla poprawnego działania pluginy należy miec zainstalowane Luci i luci-app-statistics installed. Plugin używa biblioteki lua luci.jsonc która powinna byc automatycznie dostepna jeżeli mamy zainstalowane Luci, jeżeli tak nie jest trzeba ja doinstalować (szczegóły poniżej). 
-Kolejną niezbedna biblioteką jest collectd-mod-lua
+Dla poprawnego działania pluginu należy mieć zainstalowane Luci i luci-app-statistics.
+Wymaganymi bibliotekami (instalowanymi automatycznie z pakietem) są `collectd`, `collectd-mod-lua`, `libubus-lua`, `nlbwmon` oraz `luci-app-statistics`.
 
-# Ograniczenia
-Aktualnie wspierane jest tylko IPv4, wsparcie dla IPv6 może być dodane później
- 
 # Instrukcja instalacji
-1. Sprawdź czy na Openwrt jest zainstalowane `collectd-mod-lua` jezeli nie to wykonujemy:
-   ```
+
+## Opcja 1: Automatyczna instalacja (Zalecana)
+Gotowe pakiety niezależne od architektury (`noarch`) znajdziesz w sekcji [Releases](https://github.com/mstojek/nlbw2collectd/releases).
+
+### Dla OpenWrt 24.10 i starszych (.ipk)
+1. Pobierz najnowszy plik `.ipk` na swój router.
+2. Zainstaluj go używając `opkg`:
+   ```bash
    opkg update
-   opkg install collectd-mod-lua
+   opkg install nlbw2collectd_*.ipk
    ```
 
-2. Sprawdź czy na Openwrt jest zainstalowane  `luci-lib-jsonc` :
+### Dla OpenWrt 25.12 i nowszych (.apk)
+1. Pobierz najnowszy plik `.apk` na swój router.
+2. Zainstaluj go używając `apk`:
+   ```bash
+   apk add --allow-untrusted nlbw2collectd_*.apk
    ```
-   opkg list-installed | grep luci-lib-jsonc
-   [...]
-   luci-lib-jsonc - git-22.097.61937-bc85ba5
+
+Pakiet automatycznie skonfiguruje statystyki LuCI i zrestartuje wymagane usługi.
+
+## Opcja 2: Kompilacja ze źródeł (Używając OpenWrt Feed)
+Jeśli wolisz samodzielnie zbudować pakiet przy użyciu OpenWrt SDK lub Buildroot:
+
+1. Dodaj feed do swojego pliku `feeds.conf` lub `feeds.conf.default`:
+   ```text
+   src-git nlbwmon_stats https://github.com/mstojek/nlbw2collectd.git
    ```
-   Jeżeli go nie ma to wykonujemy:
+
+2. Zaktualizuj i zainstaluj feed:
+   ```bash
+   ./scripts/feeds update nlbw2collectd
+   ./scripts/feeds install -p nlbw2collectd 
    ```
-   opkg install luci-lib-jsonc
+
+3. Wybierz pakiet w `make menuconfig`:
+   `Utilities` -> `nlbw2collectd`
+
+4. Skompiluj pakiet:
+   ```bash
+   make package/nlbw2collectd/compile V=s
    ```
-   
-3. Kopiujemy [lua.conf](lua.conf) do `katalogu konfiguracyjnego collectd` 
+
+## Opcja 3: Instalacja ręczna
+1. Upewnij się, że masz zainstalowane zależności:
+   ```bash
+   opkg update
+   opkg install collectd collectd-mod-lua libubus-lua nlbwmon luci-app-statistics
    ```
-   cp lua.conf /etc/collectd/conf.d
+
+2. Skopiuj [nlbw2collectd.lua](nlbw2collectd/src/usr/share/collectd-mod-lua/nlbw2collectd.lua) do katalogu `/usr/share/collectd-mod-lua/`.
+
+3. Skopiuj [nlbwmon.conf](nlbw2collectd/src/etc/collectd/conf.d/nlbwmon.conf) do `/etc/collectd/conf.d/`.
+
+4. Skopiuj [nlbwmon.js](nlbw2collectd/src/www/luci-static/resources/statistics/rrdtool/definitions/nlbwmon.js) do `/www/luci-static/resources/statistics/rrdtool/definitions/`.
+
+5. Skonfiguruj LuCI, aby uwzględniało nowy katalog:
+   ```bash
+   uci set luci_statistics.collectd.Include='/etc/collectd/conf.d'
+   uci commit luci_statistics
    ```
-   
-4. Kopiujemy [nlbw2collectd.lua](nlbw2collectd.lua) do katalogu `/usr/share/collectd-mod-lua/`
+
+6. Wyczyść cache LuCI i zrestartuj usługi:
+   ```bash
+   rm -rf /tmp/luci-indexcache /tmp/luci-modulecache/
+   /etc/init.d/luci_statistics restart
+   /etc/init.d/collectd restart
+   /etc/init.d/rpcd restart
    ```
-   cp nlbw2collectd.lua /usr/share/collectd-mod-lua/
-   ```
-5. Restartujemy Collectd
-   ```
-   /etc/init.d/collectd  restart
-   ```
-6. Logujemy się do Luci i sprawdzamy Statistics->Graphs->Firewall. Po około minucie powinny nam sie ukazac wykresy ruchu.
+
+7. Zaloguj się do Luci i sprawdź Statistics -> Graphs -> nlbwmon.
 
 # Zamiennik dla Iptmon 
-Od wydania Openwrt 22.03  [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze względu na zamianę iptables na nftables. Ten plugin pozwala na otrzymanie takiego samego zestawu statystyk jak Iptmon. Aby to sie stało należy zmienic dwie linie w pliku [nlbw2collectd.lua](nlbw2collectd.lua)
-Zanjdujemy linijki poniżej:
-```
-local PLUGIN_INSTANCE_RX="mangle-nlbwmon_rx" -- change to "mangle-iptmon_rx" to have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-nlbwmon_tx" -- change to "mangle-iptmon_tx" to have full compliance with iptmon
+Od wydania Openwrt 22.03  [Iptmon](https://github.com/oofnikj/iptmon) przestał działać ze względu na zamianę iptables na nftables. Ten plugin pozwala na otrzymanie takiego samego zestawu statystyk jak Iptmon. Aby to sie stało należy zmienić trzy linie w pliku `/usr/share/collectd-mod-lua/nlbw2collectd.lua`:
+
+Znajdujemy linijki poniżej:
+```lua
+local PLUGIN = "nlbwmon"
+local PLUGIN_INSTANCE_RX = "nlbwmon_rx"
+local PLUGIN_INSTANCE_TX = "nlbwmon_tx"
+local TYPE_INSTANCE_PREFIX_RX = ""
+local TYPE_INSTANCE_PREFIX_TX = ""
 ```
 i zamieniamy je na:
-```
-local PLUGIN_INSTANCE_RX="mangle-iptmon_rx" -- we have full compliance with iptmon
-local PLUGIN_INSTANCE_TX="mangle-iptmon_tx" -- we have full compliance with iptmon
+```lua
+local PLUGIN = "iptables" -- pelna zgodnosc z iptmon
+local PLUGIN_INSTANCE_RX = "mangle-iptmon_rx" -- pelna zgodnosc z iptmon
+local PLUGIN_INSTANCE_TX = "mangle-iptmon_tx" -- pelna zgodnosc z iptmon
+local TYPE_INSTANCE_PREFIX_RX = "rx" -- pelna zgodnosc z iptmon
+local TYPE_INSTANCE_PREFIX_TX = "tx" -- pelna zgodnosc z iptmon
 ```
 
 Upewniamy się że Iptmon nie jest zainstalowany ponieważ po tej zmianie Iptmon i ten plugin nie mogą być zainstalowane jednoczesnie.
@@ -73,6 +117,3 @@ Statystyki mozna wyeksportować do Influxdb/Grafany dzięki czemu można uzyska�
 ![Grafana TX chart](graphics/Grafana_Nlbwmon_tx_chart.jpg)
 ![Grafana RX Total](graphics/Grafana_Nlbwmon_rx.jpg)
 ![Grafana TX Total](graphics/Grafana_Nlbwmon_tx.jpg)
-
-   
-   
